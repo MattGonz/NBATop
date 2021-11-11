@@ -9,8 +9,9 @@ import (
 	"github.com/mattgonz/nbatop/types"
 )
 
+// Standings fetches and structures the conference standings data from the NBA Data API
 func Standings() types.NBAStandings {
-	url := "https://data.nba.net/prod/v1/current/standings_all_no_sort_keys.json"
+	url := "https://data.nba.net/prod/v2/current/standings_conference.json"
 	response, err := http.Get(url)
 
 	if err != nil {
