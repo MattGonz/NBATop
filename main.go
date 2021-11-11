@@ -59,17 +59,56 @@ func cursorUp(g *gocui.Gui, v *gocui.View) error {
 	return nil
 }
 
+func cursorTop(g *gocui.Gui, v *gocui.View) error {
+	if v != nil { // _, oy := v.Origin() cx, cy := v.Cursor()
+		if err := v.SetOrigin(0, 0); err != nil {
+			return err
+		}
+
+		v.SetCursor(0, 0)
+	}
+	return nil
+}
+
+func cursorBottom(g *gocui.Gui, v *gocui.View) error {
+	if v != nil {
+		_, maxY := v.Size()
+		// _, oy := v.Origin()
+		// _, cy := v.Cursor()
+		if err := v.SetCursor(0, 31); err != nil {
+			if err := v.SetOrigin(0, 31-maxY+1); err != nil {
+				return err
+			}
+		}
+
+		v.SetCursor(0, maxY-1)
+	}
+	return nil
+}
+
 func keybindings(g *gocui.Gui) error {
-	if err := g.SetKeybinding("", 'j', gocui.ModNone, cursorDown); err != nil {
+	// if err := g.SetKeybinding("standings", 'h', gocui.ModNone, cursorLeft); err != nil {
+	// 	return err
+	// }
+	if err := g.SetKeybinding("standings", 'j', gocui.ModNone, cursorDown); err != nil {
 		return err
 	}
-	if err := g.SetKeybinding("", 'k', gocui.ModNone, cursorUp); err != nil {
+	if err := g.SetKeybinding("standings", 'k', gocui.ModNone, cursorUp); err != nil {
+		return err
+	}
+	// if err := g.SetKeybinding("standings", 'l', gocui.ModNone, cursorRight); err != nil {
+	// 	return err
+	// }
+	if err := g.SetKeybinding("", 'g', gocui.ModNone, cursorTop); err != nil {
+		return err
+	}
+	if err := g.SetKeybinding("", 'G', gocui.ModNone, cursorBottom); err != nil {
 		return err
 	}
 	if err := g.SetKeybinding("", 'q', gocui.ModNone, quit); err != nil {
 		return err
 	}
-	if err := g.SetKeybinding("standings", gocui.KeyCtrlC, gocui.ModNone, quit); err != nil {
+	if err := g.SetKeybinding("", gocui.KeyCtrlC, gocui.ModNone, quit); err != nil {
 		log.Panicln(err)
 	}
 	return nil
@@ -117,50 +156,37 @@ func conferenceStandings() ([]string, []string) {
 	for _, team := range standings.League.Standard.Conference.East {
 		name := team.TeamSitesOnly.TeamName + " " + team.TeamSitesOnly.TeamNickname
 		record := "   " + team.Win + "-" + team.Loss
-		easternConference = append(easternConference, "\t"+name+"\t "+record)
+		easternConference = append(easternConference, "\t"+name+"\t"+record)
 	}
 
 	for _, team := range standings.League.Standard.Conference.West {
 		name := team.TeamSitesOnly.TeamName + " " + team.TeamSitesOnly.TeamNickname
 		record := team.Win + "-" + team.Loss
-		westernConference = append(westernConference, "\t"+name+"\t "+record)
+		westernConference = append(westernConference, "\t"+name+"\t"+record)
 	}
 	return westernConference, easternConference
 }
 
 func layout(g *gocui.Gui) error {
-	maxX, maxY := g.Size()
-
-	// colLength := maxX / 2
-	// rowHeight = maxY / 2
-
 	today := time.Now().Format("01-02-2006")
 	west, east := conferenceStandings()
+
+	maxX, maxY := g.Size()
 	maxWest := longest(west)
 	maxEast := longest(east)
 	width := min(max(maxWest, maxEast)+4, maxX-1)
 	length := min(len(west)+len(east)+5, maxY-1)
 
-	if v, err := g.SetView("standings", 0, 2, width, length); err != nil {
+	if v, err := g.SetView("standings", 0, 2, width-1, length); err != nil {
 		if err != gocui.ErrUnknownView {
 			return err
-		}
-		if h, err := g.SetView("header", 0, 0, width, 2); err != nil {
-			if err != gocui.ErrUnknownView {
-				return err
-			}
-			h.Title = "Standings [" + today + "]"
-			fmt.Fprint(h, "\tTeam")
-			spaces := strings.Repeat(" ", max(maxWest, maxEast)-8)
-			fmt.Fprint(h, spaces)
-			fmt.Fprint(h, "W-L")
 		}
 		g.SetCurrentView("standings")
 
 		v.Highlight = true
 		v.SelBgColor = gocui.ColorGreen
 		v.SelFgColor = gocui.ColorBlack
-		v.MoveCursor(0, 2, true)
+		v.MoveCursor(0, 1, true)
 
 		w := tabwriter.NewWriter(v, 0, 1, 1, '\t', tabwriter.AlignRight)
 		fmt.Fprintln(v, "\n\t\u001b[32mEastern Conference\u001b[0m")
@@ -176,12 +202,20 @@ func layout(g *gocui.Gui) error {
 		}
 		w.Flush()
 	}
+	if h, err := g.SetView("header", 0, 0, width-1, 2); err != nil {
+		if err != gocui.ErrUnknownView {
+			return err
+		}
+		h.Title = "Standings [" + today + "]"
+		spaces := strings.Repeat(" ", max(maxWest, maxEast)-8)
+		fmt.Fprint(h, "\tTeam"+spaces+"W-L")
+	}
 	return nil
 }
 
 func main() {
 
-	// WORKING: games today
+	// WORKING: get games today
 
 	// var today = api.GamesToday()
 	// for _, game := range today.Games {
@@ -193,14 +227,10 @@ func main() {
 	// 	fmt.Println(homeTeam.Win + "-" + homeTeam.Loss + "    " + awayTeam.Win + "-" + awayTeam.Loss + "\n")
 	// }
 
-	// WORKING: standings
+	// WORKING: get standings
+	// WORKING: standings -> gocui
+	// TODO:    today     -> gocui
 
-	// var standings = api.Standings()
-	// for _, team := range standings.League.Standard.Teams {
-	// 	fmt.Println(team.TeamSitesOnly.TeamTricode + " " + team.Win + "-" + team.Loss)
-	// }
-
-	// TODO standings -> gocui
 	g, err := gocui.NewGui(gocui.Output256)
 	if err != nil {
 		log.Panicln(err)
