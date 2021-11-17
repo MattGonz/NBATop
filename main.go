@@ -257,7 +257,7 @@ func layout(g *gocui.Gui) error {
 	longestEast := utils.Longest(east)
 	numGames := len(gamesToday)
 	spaces := strings.Repeat(" ", utils.Max(longestWest, longestEast)-8)
-	standingsLength := utils.Max(len(west)+len(east)+4, maxY-1)
+	standingsLength := utils.Min(len(west)+len(east)+4+numGames*3, maxY-1)
 	standingsWidth := utils.Min(utils.Max(longestWest, longestEast)+4, maxX-1)
 
 	drawToday(g, gamesToday, numGames*3, standingsWidth, today)
