@@ -197,9 +197,8 @@ func drawStandings(g *gocui.Gui, west, east []string, length, width, startY int,
 		}
 		g.SetCurrentView("standings")
 
-		// v.Highlight = true
-		v.SelBgColor = gocui.ColorGreen
-		v.SelFgColor = gocui.ColorBlack
+		v.Highlight = true
+		v.SelFgColor = gocui.ColorGreen
 		v.Title = "Standings [" + today + "]"
 		v.MoveCursor(0, 2, true)
 		fmt.Fprint(v, "\tTeam"+spaces+"W-L")
@@ -230,8 +229,7 @@ func drawToday(g *gocui.Gui, games [][]string, length, width int, today string) 
 		g.SetCurrentView("today")
 
 		// v.Highlight = true
-		v.SelBgColor = gocui.ColorGreen
-		v.SelFgColor = gocui.ColorBlack
+		v.SelFgColor = gocui.ColorGreen
 		v.Title = "Games [" + today + "]"
 
 		for _, game := range games {
