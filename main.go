@@ -10,8 +10,15 @@ import (
 
 	"github.com/jroimartin/gocui"
 	"github.com/mattgonz/nbatop/api"
+	"github.com/mattgonz/nbatop/types"
 	"github.com/mattgonz/nbatop/utils"
 )
+
+type NBATop struct {
+	g         *gocui.Gui
+	standings *types.NBAStandings
+	today     *types.NBAToday
+}
 
 // standingsDown moves the cursor down one row
 func standingsDown(g *gocui.Gui, v *gocui.View) error {

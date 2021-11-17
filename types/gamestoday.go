@@ -2,7 +2,7 @@ package types
 
 import "time"
 
-type NBAScoreboard struct {
+type NBAToday struct {
 	Internal struct {
 		PubDateTime             string `json:"pubDateTime"`
 		IgorPath                string `json:"igorPath"`

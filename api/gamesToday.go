@@ -11,7 +11,7 @@ import (
 	"github.com/mattgonz/nbatop/types"
 )
 
-func GamesToday() types.NBAScoreboard {
+func GamesToday() types.GamesToday {
 	today := time.Now().Format("20060102")
 	url := fmt.Sprintf("http://data.nba.net/prod/v2/%s/scoreboard.json", today)
 	response, err := http.Get(url)
@@ -26,7 +26,7 @@ func GamesToday() types.NBAScoreboard {
 		log.Fatal(err)
 	}
 
-	var result types.NBAScoreboard
+	var result types.GamesToday
 	if err := json.Unmarshal(body, &result); err != nil {
 		log.Fatal(err)
 	}
