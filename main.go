@@ -13,8 +13,8 @@ import (
 	"github.com/mattgonz/nbatop/utils"
 )
 
-// cursorDown moves the cursor down one row
-func cursorDown(g *gocui.Gui, v *gocui.View) error {
+// standingsDown moves the cursor down one row
+func standingsDown(g *gocui.Gui, v *gocui.View) error {
 	if v != nil {
 		cx, cy := v.Cursor()
 		ox, oy := v.Origin()
@@ -40,8 +40,8 @@ func cursorDown(g *gocui.Gui, v *gocui.View) error {
 	return nil
 }
 
-// cursorUp moves the cursor up one row
-func cursorUp(g *gocui.Gui, v *gocui.View) error {
+// standingsUp moves the cursor up one row
+func standingsUp(g *gocui.Gui, v *gocui.View) error {
 	if v != nil {
 		ox, oy := v.Origin()
 		cx, cy := v.Cursor()
@@ -74,6 +74,39 @@ func cursorTop(g *gocui.Gui, v *gocui.View) error {
 	return nil
 }
 
+func todayPrev(g *gocui.Gui, v *gocui.View) error {
+	if v != nil {
+		ox, oy := v.Origin()
+		cx, cy := v.Cursor()
+		if err := v.SetCursor(cx, cy-3); err != nil && oy > 0 {
+			if err := v.SetOrigin(ox, oy-3); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
+func todayNext(g *gocui.Gui, v *gocui.View) error {
+	if v != nil {
+		cx, cy := v.Cursor()
+		ox, oy := v.Origin()
+		gameLines := len(v.BufferLines()) - 6
+
+		if oy+cy+1 > gameLines {
+			return nil
+		}
+
+		if err := v.SetCursor(cx, cy+3); err != nil {
+			if err := v.SetOrigin(ox, oy+3); err != nil {
+				return err
+			}
+		}
+
+	}
+	return nil
+}
+
 // cursorBottom moves the cursor to the bottom of the view
 func cursorBottom(g *gocui.Gui, v *gocui.View) error {
 	if v != nil {
@@ -91,23 +124,51 @@ func cursorBottom(g *gocui.Gui, v *gocui.View) error {
 	return nil
 }
 
+func focusToday(g *gocui.Gui, v *gocui.View) error {
+	_, err := g.SetCurrentView("today")
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func focusStandings(g *gocui.Gui, v *gocui.View) error {
+	_, err := g.SetCurrentView("standings")
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
 func keybindings(g *gocui.Gui) error {
 	// if err := g.SetKeybinding("standings", 'h', gocui.ModNone, cursorLeft); err != nil {
 	// 	return err
 	// }
-	if err := g.SetKeybinding("standings", 'j', gocui.ModNone, cursorDown); err != nil {
+	if err := g.SetKeybinding("standings", 'j', gocui.ModNone, standingsDown); err != nil {
 		return err
 	}
-	if err := g.SetKeybinding("standings", 'k', gocui.ModNone, cursorUp); err != nil {
+	if err := g.SetKeybinding("standings", 'k', gocui.ModNone, standingsUp); err != nil {
+		return err
+	}
+	if err := g.SetKeybinding("today", 'j', gocui.ModNone, todayNext); err != nil {
+		return err
+	}
+	if err := g.SetKeybinding("today", 'k', gocui.ModNone, todayPrev); err != nil {
 		return err
 	}
 	// if err := g.SetKeybinding("standings", 'l', gocui.ModNone, cursorRight); err != nil {
 	// 	return err
 	// }
-	if err := g.SetKeybinding("", 'g', gocui.ModNone, cursorTop); err != nil {
+	if err := g.SetKeybinding("standings", 'g', gocui.ModNone, cursorTop); err != nil {
 		return err
 	}
-	if err := g.SetKeybinding("", 'G', gocui.ModNone, cursorBottom); err != nil {
+	if err := g.SetKeybinding("standings", 'G', gocui.ModNone, cursorBottom); err != nil {
+		return err
+	}
+	if err := g.SetKeybinding("standings", 'K', gocui.ModNone, focusToday); err != nil {
+		return err
+	}
+	if err := g.SetKeybinding("today", 'J', gocui.ModNone, focusStandings); err != nil {
 		return err
 	}
 	if err := g.SetKeybinding("", 'q', gocui.ModNone, quit); err != nil {
@@ -255,11 +316,12 @@ func layout(g *gocui.Gui) error {
 	longestEast := utils.Longest(east)
 	numGames := len(gamesToday)
 	spaces := strings.Repeat(" ", utils.Max(longestWest, longestEast)-8)
-	standingsLength := utils.Min(len(west)+len(east)+4+numGames*3, maxY-1)
+	todayLength := utils.Min(maxY/2, numGames*3)
+	standingsLength := utils.Min(len(west)+len(east)+todayLength, maxY-1)
 	standingsWidth := utils.Min(utils.Max(longestWest, longestEast)+4, maxX-1)
 
-	drawToday(g, gamesToday, numGames*3, standingsWidth, today)
-	drawStandings(g, west, east, standingsLength, standingsWidth, numGames*3+1, spaces, today)
+	drawToday(g, gamesToday, todayLength, standingsWidth, today)
+	drawStandings(g, west, east, standingsLength, standingsWidth, todayLength+1, spaces, today)
 
 	return nil
 }
