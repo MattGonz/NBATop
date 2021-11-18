@@ -211,9 +211,9 @@ func drawStandings(g *gocui.Gui, west, east []string, length, width, startY int,
 		fmt.Fprint(v, "\tTeam"+spaces+"W-L")
 
 		w := tabwriter.NewWriter(v, 0, 1, 1, '\t', tabwriter.AlignRight)
-		fmt.Fprintln(v, "\n\t\u001b[32mEastern Conference\u001b[0m")
+		fmt.Fprintln(v, "\n\t\u001b[33mEastern Conference\u001b[0m")
 
-		east = append(east, "\t\u001b[32mWestern Conference\u001b[0m")
+		east = append(east, "\t\u001b[33mWestern Conference\u001b[0m")
 		// east = append(east, "\tTeam\tRecord")
 		standings := append(east, west...)
 
