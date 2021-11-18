@@ -125,7 +125,7 @@ func cursorBottom(g *gocui.Gui, v *gocui.View) error {
 		// _, oy := v.Origin()
 		// _, cy := v.Cursor()
 		if err := v.SetCursor(0, 31); err != nil {
-			if err := v.SetOrigin(0, 31-maxY+1); err != nil {
+			if err := v.SetOrigin(0, 31-maxY+2); err != nil {
 				return err
 			}
 		}
