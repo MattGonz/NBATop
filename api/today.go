@@ -1,6 +1,13 @@
-package types
+package api
 
-import "time"
+import (
+	"encoding/json"
+	"fmt"
+	"io/ioutil"
+	"log"
+	"net/http"
+	"time"
+)
 
 type NBAToday struct {
 	Internal struct {
@@ -170,4 +177,26 @@ type NBAToday struct {
 			} `json:"broadcast"`
 		} `json:"watch"`
 	} `json:"games"`
+}
+
+func GetGamesToday() *NBAToday {
+	today := time.Now().Format("20060102")
+	url := fmt.Sprintf("http://data.nba.net/prod/v2/%s/scoreboard.json", today)
+	response, err := http.Get(url)
+
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer response.Body.Close()
+
+	body, err := ioutil.ReadAll(response.Body)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	var result *NBAToday
+	if err := json.Unmarshal(body, &result); err != nil {
+		log.Fatal(err)
+	}
+	return result
 }

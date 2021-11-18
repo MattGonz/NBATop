@@ -3,21 +3,22 @@ package main
 import (
 	"fmt"
 	"log"
-	"strconv"
 	"strings"
+	"sync"
 	"text/tabwriter"
 	"time"
 
 	"github.com/jroimartin/gocui"
 	"github.com/mattgonz/nbatop/api"
-	"github.com/mattgonz/nbatop/types"
+	"github.com/mattgonz/nbatop/ui"
 	"github.com/mattgonz/nbatop/utils"
 )
 
 type NBATop struct {
 	g         *gocui.Gui
-	standings *types.NBAStandings
-	today     *types.NBAToday
+	standings *api.NBAStandings
+	today     *api.NBAToday
+	views     *ui.Views
 }
 
 // standingsDown moves the cursor down one row
@@ -98,6 +99,9 @@ func todayNext(g *gocui.Gui, v *gocui.View) error {
 	if v != nil {
 		cx, cy := v.Cursor()
 		ox, oy := v.Origin()
+
+		// TODO this changes as you scroll down, use the attribute instead
+		// the problem is that this function takes in a generic view instead of a TodayView
 		gameLines := len(v.BufferLines()) - 6
 
 		if oy+cy+1 > gameLines {
@@ -192,71 +196,6 @@ func quit(g *gocui.Gui, v *gocui.View) error {
 	return gocui.ErrQuit
 }
 
-// conferenceStandings returns the formatted standings for the eastern and western conferences
-func conferenceStandings() ([]string, []string) {
-	var westernConference []string
-	var easternConference []string
-
-	var standings = api.Standings()
-
-	for _, team := range standings.League.Standard.Conference.East {
-		name := team.TeamSitesOnly.TeamName + " " + team.TeamSitesOnly.TeamNickname
-
-		wins, err := strconv.Atoi(team.Win)
-		if err != nil {
-			log.Panicln(err)
-		}
-
-		var record string
-		if wins < 10 {
-			record = "    " + team.Win + "-" + team.Loss
-		} else {
-			record = "   " + team.Win + "-" + team.Loss
-		}
-
-		easternConference = append(easternConference, "\t"+name+"\t"+record)
-	}
-
-	for _, team := range standings.League.Standard.Conference.West {
-		name := team.TeamSitesOnly.TeamName + " " + team.TeamSitesOnly.TeamNickname
-		wins, err := strconv.Atoi(team.Win)
-		if err != nil {
-			log.Panicln(err)
-		}
-
-		var record string
-		if wins < 10 {
-			record = " " + team.Win + "-" + team.Loss
-		} else {
-			record = team.Win + "-" + team.Loss
-		}
-
-		westernConference = append(westernConference, "\t"+name+"\t"+record)
-	}
-	return westernConference, easternConference
-}
-
-// gamesToday returns the formatted games for today
-func gamesToday() [][]string {
-	var games [][]string
-
-	var gamesToday = api.GamesToday()
-
-	for _, game := range gamesToday.Games {
-		homeTeam := game.HTeam
-		homeTeamRecord := " (" + homeTeam.Win + "-" + homeTeam.Loss + ")"
-		awayTeam := game.VTeam
-		awayTeamRecord := "(" + awayTeam.Win + "-" + awayTeam.Loss + ") "
-
-		gameInfo := awayTeamRecord + awayTeam.TriCode + " at " + homeTeam.TriCode + homeTeamRecord
-		// spaces := strings.Repeat(" ", len(gameInfo)/3)
-		startTime := game.StartTimeEastern
-
-		games = append(games, []string{startTime, gameInfo})
-	}
-	return games
-}
-
 // drawStandings draws the current east and west conference standings in a gocui view
 func drawStandings(g *gocui.Gui, west, east []string, length, width, startY int, spaces, today string) error {
 	if v, err := g.SetView("standings", 0, startY, width-1, length); err != nil {
@@ -312,20 +251,23 @@ func drawToday(g *gocui.Gui, games [][]string, length, width int, today string) 
 	return nil
 }
 
-func layout(g *gocui.Gui) error {
+func (nbatop *NBATop) layout(g *gocui.Gui) error {
 	today := time.Now().Format("01-02-2006")
+	maxX, maxY := nbatop.g.Size()
 
-	west, east := conferenceStandings()
-	gamesToday := gamesToday()
+	// Today
+	gamesToday := nbatop.views.Today.Games
+	numGames := len(gamesToday)
+	todayLength := utils.Min(maxY/2, numGames*3)
 
-	maxX, maxY := g.Size()
+	// Standings
+	west := nbatop.views.Standings.WesternConference
+	east := nbatop.views.Standings.EasternConference
 	longestWest := utils.Longest(west)
 	longestEast := utils.Longest(east)
-	numGames := len(gamesToday)
-	spaces := strings.Repeat(" ", utils.Max(longestWest, longestEast)-8)
-	todayLength := utils.Min(maxY/2, numGames*3)
 	standingsLength := utils.Min(len(west)+len(east)+todayLength, maxY-1)
 	standingsWidth := utils.Min(utils.Max(longestWest, longestEast)+4, maxX-1)
+	spaces := strings.Repeat(" ", utils.Max(longestWest, longestEast)-8)
 
 	drawToday(g, gamesToday, todayLength, standingsWidth, today)
 	drawStandings(g, west, east, standingsLength, standingsWidth, todayLength+1, spaces, today)
@@ -335,35 +277,62 @@ func layout(g *gocui.Gui) error {
 
 func main() {
 
-	// TODO: structs / split into multiple files
-	// TODO: cache standings / games today to increase performance on keypress
+	// TODO: iron out structs / split into multiple files
+	// TODO: cache standings / games today?
 	// TODO: team stats / schedule tabs
 	// TODO: enter on a team name to open team schedule / stats
-	// TODO: jump between views
 
 	// WORKING: get games today
 	// WORKING: get standings
 	// WORKING: standings -> gocui
 	// WORKING: today     -> gocui
+	// WORKING: jump between views
 
+	// Create GUI
 	g, err := gocui.NewGui(gocui.Output256)
 	if err != nil {
 		log.Panicln(err)
 	}
 	defer g.Close()
 
-	g.Cursor = true
-	g.Mouse = true
-	g.Highlight = true
-	g.SelFgColor = gocui.ColorGreen
+	nbatop := NBATop{
+		g:         g,
+		standings: &api.NBAStandings{},
+		today:     &api.NBAToday{},
+		views: &ui.Views{
+			Standings: ui.NewStandingsView(g),
+			Today:     ui.NewTodayView(g),
+		},
+	}
+	nbatop.g = g
+	nbatop.g.Cursor = true
+	nbatop.g.Mouse = true
+	nbatop.g.Highlight = true
+	nbatop.g.SelFgColor = gocui.ColorGreen
 
-	g.SetManagerFunc(layout)
+	var wg sync.WaitGroup
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		nbatop.standings = api.GetStandings()
+		nbatop.views.Standings.GetConferenceStandings(nbatop.standings)
+	}()
 
-	if err := keybindings(g); err != nil {
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		nbatop.today = api.GetGamesToday()
+		nbatop.views.Today.GetGames(nbatop.today)
+	}()
+	wg.Wait()
+
+	nbatop.g.SetManagerFunc(nbatop.layout)
+
+	if err := keybindings(nbatop.g); err != nil {
 		log.Panicln(err)
 	}
 
-	if err := g.MainLoop(); err != nil && err != gocui.ErrQuit {
+	if err := nbatop.g.MainLoop(); err != nil && err != gocui.ErrQuit {
 		log.Panicln(err)
 	}
 
