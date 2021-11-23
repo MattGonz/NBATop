@@ -3,6 +3,7 @@ package nbatop
 import (
 	"log"
 	"strconv"
+	"sync"
 	"time"
 
 	"github.com/jroimartin/gocui"
@@ -84,44 +85,56 @@ func (nt *NBATop) GetConferenceStandings() error {
 	var westernConference []string
 	var easternConference []string
 
-	for _, team := range nt.State.Standings.League.Standard.Conference.East {
-		name := team.TeamSitesOnly.TeamName + " " + team.TeamSitesOnly.TeamNickname
+	var wg sync.WaitGroup
 
-		wins, err := strconv.Atoi(team.Win)
-		if err != nil {
-			return err
+	wg.Add(1)
+	go func() error {
+		defer wg.Done()
+		for _, team := range nt.State.Standings.League.Standard.Conference.East {
+			name := team.TeamSitesOnly.TeamName + " " + team.TeamSitesOnly.TeamNickname
+
+			wins, err := strconv.Atoi(team.Win)
+			if err != nil {
+				return err
+			}
+
+			var record string
+			if wins < 10 {
+				record = "    " + team.Win + "-" + team.Loss
+			} else {
+				record = "   " + team.Win + "-" + team.Loss
+			}
+
+			easternConference = append(easternConference, "\t"+name+"\t"+record)
+			nt.Views.Standings.EasternConference = easternConference
 		}
+		return nil
+	}()
 
-		var record string
-		if wins < 10 {
-			record = "    " + team.Win + "-" + team.Loss
-		} else {
-			record = "   " + team.Win + "-" + team.Loss
+	wg.Add(1)
+	go func() error {
+		defer wg.Done()
+		for _, team := range nt.State.Standings.League.Standard.Conference.West {
+			name := team.TeamSitesOnly.TeamName + " " + team.TeamSitesOnly.TeamNickname
+
+			wins, err := strconv.Atoi(team.Win)
+			if err != nil {
+				return err
+			}
+
+			var record string
+			if wins < 10 {
+				record = " " + team.Win + "-" + team.Loss
+			} else {
+				record = team.Win + "-" + team.Loss
+			}
+
+			westernConference = append(westernConference, "\t"+name+"\t"+record)
+			nt.Views.Standings.WesternConference = westernConference
 		}
-
-		easternConference = append(easternConference, "\t"+name+"\t"+record)
-	}
-
-	for _, team := range nt.State.Standings.League.Standard.Conference.West {
-		name := team.TeamSitesOnly.TeamName + " " + team.TeamSitesOnly.TeamNickname
-
-		wins, err := strconv.Atoi(team.Win)
-		if err != nil {
-			return err
-		}
-
-		var record string
-		if wins < 10 {
-			record = " " + team.Win + "-" + team.Loss
-		} else {
-			record = team.Win + "-" + team.Loss
-		}
-
-		westernConference = append(westernConference, "\t"+name+"\t"+record)
-	}
-
-	nt.Views.Standings.WesternConference = westernConference
-	nt.Views.Standings.EasternConference = easternConference
+		return nil
+	}()
+	wg.Wait()
 
 	return nil
 }
