@@ -16,6 +16,9 @@ func (nt *NBATop) SetKeybindings() error {
 	if err := nt.G.SetKeybinding("standings", 'k', gocui.ModNone, standingsUp); err != nil {
 		return err
 	}
+	if err := nt.G.SetKeybinding("standings", gocui.KeyEnter, gocui.ModNone, nt.selectTeam); err != nil {
+		return err
+	}
 	if err := nt.G.SetKeybinding("today", 'j', gocui.ModNone, todayNext); err != nil {
 		return err
 	}

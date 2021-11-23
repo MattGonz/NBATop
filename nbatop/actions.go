@@ -1,6 +1,10 @@
 package nbatop
 
-import "github.com/jroimartin/gocui"
+import (
+	"os"
+
+	"github.com/jroimartin/gocui"
+)
 
 // standingsDown moves the cursor down one row
 func standingsDown(g *gocui.Gui, v *gocui.View) error {
@@ -25,6 +29,21 @@ func standingsDown(g *gocui.Gui, v *gocui.View) error {
 				return err
 			}
 		}
+	}
+	return nil
+}
+
+// selectTeam selects the team at the cursor
+func (nt *NBATop) selectTeam(g *gocui.Gui, v *gocui.View) error {
+	if v != nil {
+		_, cy := v.Cursor()
+		_, oy := v.Origin()
+		idx := oy + cy
+
+		// TODO this is a hack to see teamID (can't print in view, no tty for delve)
+		f, _ := os.Create("test.txt")
+		defer f.Close()
+		f.WriteString(nt.State.IdxTeamIdMap[idx])
 	}
 	return nil
 }

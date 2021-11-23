@@ -22,7 +22,7 @@ func (nt *NBATop) layout(g *gocui.Gui) error {
 	nt.DrawStandings()
 
 	// Placeholder for the main table view
-	if v, err := g.SetView("main", nt.State.SidebarWidth, 0, nt.State.MaxX-1, nt.State.MaxY-1); err != nil {
+	if v, err := g.SetView("table", nt.State.SidebarWidth, 0, nt.State.MaxX-1, nt.State.MaxY-1); err != nil {
 		if err != gocui.ErrUnknownView {
 			return err
 		}

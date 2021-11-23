@@ -23,6 +23,7 @@ type State struct {
 	SidebarLength    int
 	Today            string
 	MaxX, MaxY       int
+	IdxTeamIdMap     map[int]string
 }
 
 type NBATop struct {
@@ -39,9 +40,10 @@ func NewNBATop() *NBATop {
 			Today:     NewTodayView(),
 		},
 		State: &State{
-			Standings:  &api.NBAStandings{},
-			GamesToday: &api.NBAToday{},
-			Today:      time.Now().Format("01-02-2006"),
+			Standings:    &api.NBAStandings{},
+			GamesToday:   &api.NBAToday{},
+			Today:        time.Now().Format("01-02-2006"),
+			IdxTeamIdMap: make(map[int]string),
 		},
 	}
 
@@ -83,8 +85,11 @@ func (nt *NBATop) Run() {
 func (nt *NBATop) GetConferenceStandings() error {
 	var westernConference []string
 	var easternConference []string
+	idx := 0
 
-	for _, team := range nt.State.Standings.League.Standard.Conference.East {
+	for i, team := range nt.State.Standings.League.Standard.Conference.East {
+		idx = i
+		nt.State.IdxTeamIdMap[idx] = team.TeamID
 		name := team.TeamSitesOnly.TeamName + " " + team.TeamSitesOnly.TeamNickname
 
 		wins, err := strconv.Atoi(team.Win)
@@ -102,7 +107,9 @@ func (nt *NBATop) GetConferenceStandings() error {
 		easternConference = append(easternConference, "\t"+name+"\t"+record)
 	}
 
-	for _, team := range nt.State.Standings.League.Standard.Conference.West {
+	for i, team := range nt.State.Standings.League.Standard.Conference.West {
+		idx = i
+		nt.State.IdxTeamIdMap[idx+i] = team.TeamID
 		name := team.TeamSitesOnly.TeamName + " " + team.TeamSitesOnly.TeamNickname
 
 		wins, err := strconv.Atoi(team.Win)
