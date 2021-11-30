@@ -9,16 +9,16 @@ import (
 
 func main() {
 
+	// TODO: team stats from team ID (endpoint seems to be down or deprecated)
 	// TODO: continue to iron out structs / split into multiple files
-	// TODO: cache standings / games today?
-	// TODO: team stats / schedule tabs
-	// TODO: enter on a team name to open team schedule / stats
+	// TODO: cache standings / games today / team stats?
 
 	// WORKING: get games today
 	// WORKING: get standings
 	// WORKING: standings -> gocui
 	// WORKING: today     -> gocui
 	// WORKING: jump between views
+	// WORKING: enter on a team name -> get which team is highlighted
 
 	nt := nbatop.NewNBATop()
 
@@ -38,6 +38,6 @@ func main() {
 	}()
 	wg.Wait()
 
-	nt.Run()
-
+	api.GetTeamStats("1610612745")
+	// nt.Run()
 }
