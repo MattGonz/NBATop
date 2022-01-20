@@ -347,13 +347,6 @@ func GetBoxScore(gameDate, gameID string) *BoxScore {
 		log.Panicln(err)
 	}
 
-	req.Header = http.Header{
-		"Host":       []string{"stats.nba.com"},
-		"User-Agent": []string{"Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:72.0) Gecko/20100101 Firefox/72.0"},
-		"Accept":     []string{"application/json, text/plain, */*"},
-		"Referer":    []string{"https://stats.nba.com/"},
-	}
-
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		log.Panicln(err)
