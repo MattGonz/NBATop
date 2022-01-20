@@ -10,8 +10,11 @@ import (
 )
 
 type Views struct {
-	Standings *StandingsView
-	Today     *TodayView
+	StandingsView   *StandingsView
+	TodayView       *TodayView
+	TableView       *EmptyTableView
+	TeamGameLogView *TeamGameLogView
+	BoxScoreView    *BoxScoreView
 }
 
 type State struct {
@@ -19,11 +22,14 @@ type State struct {
 	StandingsSpaces  int
 	GamesToday       *api.NBAToday
 	GamesTodayLength int
+	ActivePlayers    *api.Players
+	IdPlayerNameMap  map[string]string
 	SidebarWidth     int
 	SidebarLength    int
 	Today            string
 	MaxX, MaxY       int
 	IdxTeamIdMap     map[int]string
+	LastTableView    string
 }
 
 type NBATop struct {
@@ -36,14 +42,19 @@ type NBATop struct {
 func NewNBATop() *NBATop {
 	nbatop := NBATop{
 		Views: &Views{
-			Standings: NewStandingsView(),
-			Today:     NewTodayView(),
+			StandingsView:   NewStandingsView(),
+			TodayView:       NewTodayView(),
+			TableView:       NewTableView(),
+			TeamGameLogView: NewTeamGameLogView(),
+			BoxScoreView:    NewBoxScoreView(),
 		},
 		State: &State{
-			Standings:    &api.NBAStandings{},
-			GamesToday:   &api.NBAToday{},
-			Today:        time.Now().Format("01-02-2006"),
-			IdxTeamIdMap: make(map[int]string),
+			Standings:       &api.NBAStandings{},
+			GamesToday:      &api.NBAToday{},
+			Today:           time.Now().Format("01-02-2006"),
+			IdPlayerNameMap: make(map[string]string),
+			IdxTeamIdMap:    make(map[int]string),
+			LastTableView:   "table",
 		},
 	}
 
@@ -57,7 +68,6 @@ func quit(g *gocui.Gui, v *gocui.View) error {
 
 // Run starts the GUI
 func (nt *NBATop) Run() {
-
 	g, err := gocui.NewGui(gocui.Output256)
 	if err != nil {
 		log.Panicln(err)
@@ -81,8 +91,8 @@ func (nt *NBATop) Run() {
 	}
 }
 
-// GetConferenceStandings returns the formatted standings for the eastern and western conferences
-func (nt *NBATop) GetConferenceStandings() error {
+// FormatConferenceStandings returns the formatted standings for the eastern and western conferences
+func (nt *NBATop) FormatConferenceStandings() error {
 	var westernConference []string
 	var easternConference []string
 	idx := 0
@@ -107,9 +117,9 @@ func (nt *NBATop) GetConferenceStandings() error {
 		easternConference = append(easternConference, "\t"+name+"\t"+record)
 	}
 
-	for i, team := range nt.State.Standings.League.Standard.Conference.West {
-		idx = i
-		nt.State.IdxTeamIdMap[idx+i] = team.TeamID
+	for _, team := range nt.State.Standings.League.Standard.Conference.West {
+		idx += 1
+		nt.State.IdxTeamIdMap[idx] = team.TeamID
 		name := team.TeamSitesOnly.TeamName + " " + team.TeamSitesOnly.TeamNickname
 
 		wins, err := strconv.Atoi(team.Win)
@@ -127,14 +137,14 @@ func (nt *NBATop) GetConferenceStandings() error {
 		westernConference = append(westernConference, "\t"+name+"\t"+record)
 	}
 
-	nt.Views.Standings.WesternConference = westernConference
-	nt.Views.Standings.EasternConference = easternConference
+	nt.Views.StandingsView.WesternConference = westernConference
+	nt.Views.StandingsView.EasternConference = easternConference
 
 	return nil
 }
 
-// GetGames gets the formatted game strings for today
-func (nt *NBATop) GetGames() {
+// FormatGamesToday returns the formatted game strings for today
+func (nt *NBATop) FormatGamesToday() {
 	var games [][]string
 
 	for _, game := range nt.State.GamesToday.Games {
@@ -149,6 +159,15 @@ func (nt *NBATop) GetGames() {
 
 		games = append(games, []string{startTime, gameInfo})
 	}
-	nt.Views.Today.Games = games
-	nt.Views.Today.NumLines = len(games) * 3
+	nt.Views.TodayView.Games = games
+	nt.Views.TodayView.NumLines = len(games) * 3
+}
+
+// MapPlayerIDs maps player IDs to player names
+func (nt *NBATop) MapPlayerIDs() {
+	for _, player := range nt.State.ActivePlayers.League.Players {
+		fullName := player.FirstName + " " + player.LastName
+		playerID := player.PersonID
+		nt.State.IdPlayerNameMap[playerID] = fullName
+	}
 }

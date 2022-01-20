@@ -11,7 +11,7 @@ func Longest(strs []string) int {
 	return longest
 }
 
-// Max returns the largest of the two ints.
+// Max returns the maximum of the two ints
 func Max(a, b int) int {
 	if a > b {
 		return a
@@ -19,7 +19,7 @@ func Max(a, b int) int {
 	return b
 }
 
-// Min returns the smallest of the two ints.
+// Min returns the minimum of the two ints
 func Min(a, b int) int {
 	if a < b {
 		return a

@@ -2,10 +2,10 @@ package nbatop
 
 import (
 	"fmt"
+	"strconv"
 	"strings"
 
 	"github.com/jroimartin/gocui"
-	"github.com/mattgonz/nbatop/api"
 )
 
 type TodayView struct {
@@ -24,42 +24,31 @@ func NewTodayView() *TodayView {
 	}
 }
 
-// gamesToday returns the formatted games for today
-func (t *TodayView) GetGames(gamesToday *api.NBAToday) {
-	var games [][]string
-
-	for _, game := range gamesToday.Games {
-		homeTeam := game.HTeam
-		homeTeamRecord := " (" + homeTeam.Win + "-" + homeTeam.Loss + ")"
-		awayTeam := game.VTeam
-		awayTeamRecord := "(" + awayTeam.Win + "-" + awayTeam.Loss + ") "
-
-		gameInfo := awayTeamRecord + awayTeam.TriCode + " at " + homeTeam.TriCode + homeTeamRecord
-		startTime := game.StartTimeEastern
-
-		games = append(games, []string{startTime, gameInfo})
+// focusToday focuses the TodayView
+func focusToday(g *gocui.Gui, v *gocui.View) error {
+	_, err := g.SetCurrentView("today")
+	if err != nil {
+		return err
 	}
-	t.Games = games
-	t.NumLines = len(games) * 3
+	return nil
 }
 
 // DrawToday draws today's games in a gocui view
 func (nt *NBATop) DrawToday() error {
-	t := nt.Views.Today
+	today := nt.Views.TodayView
 	x1 := nt.State.SidebarWidth - 1
 	y1 := nt.State.GamesTodayLength - 1
 	if v, err := nt.G.SetView("today", 0, 0, x1, y1); err != nil {
 		if err != gocui.ErrUnknownView {
 			return err
 		}
-		t.v = v
+		today.v = v
 		nt.G.SetCurrentView("today")
 
-		// v.Highlight = true
 		v.SelFgColor = gocui.ColorGreen
-		v.Title = "Games [" + nt.State.Today + "]"
+		v.Title = strconv.Itoa(len(nt.Views.TodayView.Games)) + " Games Today [" + nt.State.Today + "]"
 
-		for _, game := range t.Games {
+		for _, game := range today.Games {
 			startTime := game[0]
 			gameInfo := game[1]
 			timeSpaces := strings.Repeat(" ", ((x1-2)-len(startTime))/2)
@@ -67,6 +56,23 @@ func (nt *NBATop) DrawToday() error {
 			fmt.Fprintln(v, timeSpaces+startTime)
 			fmt.Fprintln(v, gameSpaces+gameInfo+"\n")
 		}
+	}
+	return nil
+}
+
+// SetTodayKeybinds sets the keybindings for the TodayView
+func (nt *NBATop) SetTodayKeybinds() error {
+	if err := nt.G.SetKeybinding("today", 'j', gocui.ModNone, todayNext); err != nil {
+		return err
+	}
+	if err := nt.G.SetKeybinding("today", 'k', gocui.ModNone, todayPrev); err != nil {
+		return err
+	}
+	if err := nt.G.SetKeybinding("today", 'J', gocui.ModNone, nt.focusStandings); err != nil {
+		return err
+	}
+	if err := nt.G.SetKeybinding("today", 'L', gocui.ModNone, nt.focusTable); err != nil {
+		return err
 	}
 	return nil
 }

@@ -1,8 +1,6 @@
 package nbatop
 
 import (
-	"os"
-
 	"github.com/jroimartin/gocui"
 )
 
@@ -16,14 +14,6 @@ func standingsDown(g *gocui.Gui, v *gocui.View) error {
 			return nil
 		}
 
-		// skip "Western Conference" (performance hit)
-		// else if oy+cy+1 == 16 {
-		// 	if err := v.SetCursor(cx, cy+2); err != nil {
-		// 		return err
-		// 	}
-		// 	return nil
-		// }
-
 		if err := v.SetCursor(cx, cy+1); err != nil {
 			if err := v.SetOrigin(ox, oy+1); err != nil {
 				return err
@@ -33,17 +23,61 @@ func standingsDown(g *gocui.Gui, v *gocui.View) error {
 	return nil
 }
 
-// selectTeam selects the team at the cursor
+// selectTeam selects the team at the cursor and displays the team's
+// game log in the main table view
 func (nt *NBATop) selectTeam(g *gocui.Gui, v *gocui.View) error {
 	if v != nil {
 		_, cy := v.Cursor()
 		_, oy := v.Origin()
-		idx := oy + cy
 
-		// TODO this is a hack to see teamID (can't print in view, no tty for delve)
-		f, _ := os.Create("test.txt")
-		defer f.Close()
-		f.WriteString(nt.State.IdxTeamIdMap[idx])
+		// Top 2 lines are headers
+		idx := cy - 2
+
+		// Adjust team index by scroll distance
+		if oy > 0 {
+			idx += oy
+		}
+
+		// Skip top row and Western Conference
+		if idx < 0 || idx == 15 {
+			return nil
+		}
+
+		// Adjust for teams after "Western Conference"
+		if idx > 15 {
+			idx -= 1
+		}
+
+		err := nt.DrawTeamGameLog(nt.State.IdxTeamIdMap[idx])
+		if err != nil {
+			return err
+		}
+
+	}
+	return nil
+}
+
+// selectGame selects the game at the cursor and displays the game's
+// box score in the main table view
+func (nt *NBATop) selectGame(g *gocui.Gui, v *gocui.View) error {
+	if v != nil {
+		_, cy := v.Cursor()
+		_, oy := v.Origin()
+
+		// Top line contains headers
+		idx := cy - 1
+
+		// Adjust team index by scroll distance
+		if oy > 0 {
+			idx += oy
+		}
+
+		// Skip top row
+		if idx < 0 {
+			return nil
+		}
+
+		nt.DrawBoxScore(idx)
 	}
 	return nil
 }
@@ -53,14 +87,6 @@ func standingsUp(g *gocui.Gui, v *gocui.View) error {
 	if v != nil {
 		ox, oy := v.Origin()
 		cx, cy := v.Cursor()
-
-		// skip "Western Conference" (performance hit)
-		// if oy+cy+1 == 18 {
-		// 	if err := v.SetCursor(cx, cy-2); err != nil {
-		// 		return err
-		// 	}
-		// 	return nil
-		// }
 
 		if err := v.SetCursor(cx, cy-1); err != nil && oy > 0 {
 			if err := v.SetOrigin(ox, oy-1); err != nil {
@@ -77,10 +103,12 @@ func cursorTop(g *gocui.Gui, v *gocui.View) error {
 		if err := v.SetOrigin(0, 0); err != nil {
 			return err
 		}
-		v.SetCursor(0, 2)
+		v.SetCursor(0, 0)
 	}
 	return nil
 }
+
+// todayPrev moves the cursor up 3 rows
 func todayPrev(g *gocui.Gui, v *gocui.View) error {
 	if v != nil {
 		ox, oy := v.Origin()
@@ -94,6 +122,7 @@ func todayPrev(g *gocui.Gui, v *gocui.View) error {
 	return nil
 }
 
+// todayNext moves the cursor down 3 rows
 func todayNext(g *gocui.Gui, v *gocui.View) error {
 	if v != nil {
 		cx, cy := v.Cursor()
@@ -134,18 +163,52 @@ func cursorBottom(g *gocui.Gui, v *gocui.View) error {
 	return nil
 }
 
-func focusToday(g *gocui.Gui, v *gocui.View) error {
-	_, err := g.SetCurrentView("today")
+// focusTable sets the most recent table view on top, then focuses it
+func (nt *NBATop) focusTable(g *gocui.Gui, v *gocui.View) error {
+
+	_, err := g.SetViewOnTop(nt.State.LastTableView)
+	if err != nil {
+		return err
+	}
+	v, err = g.SetCurrentView(nt.State.LastTableView)
 	if err != nil {
 		return err
 	}
 	return nil
 }
 
-func focusStandings(g *gocui.Gui, v *gocui.View) error {
-	_, err := g.SetCurrentView("standings")
-	if err != nil {
-		return err
+// cursorUp moves the cursor up one row
+func cursorUp(g *gocui.Gui, v *gocui.View) error {
+	if v != nil {
+		ox, oy := v.Origin()
+		cx, cy := v.Cursor()
+
+		if err := v.SetCursor(cx, cy-1); err != nil && oy > 0 {
+			if err := v.SetOrigin(ox, oy-1); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
+// cursorDown moves the cursor down one row
+func cursorDown(g *gocui.Gui, v *gocui.View) error {
+	if v != nil {
+		cx, cy := v.Cursor()
+		ox, oy := v.Origin()
+
+		bufferLines := len(v.BufferLines()) - 2
+
+		if oy+cy+1 > bufferLines {
+			return nil
+		}
+
+		if err := v.SetCursor(cx, cy+1); err != nil {
+			if err := v.SetOrigin(ox, oy+1); err != nil {
+				return err
+			}
+		}
 	}
 	return nil
 }

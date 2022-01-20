@@ -25,6 +25,23 @@ func NewStandingsView() *StandingsView {
 	}
 }
 
+// focusStandings focuses the standings view and stores the name of the most recently used table view
+func (nt *NBATop) focusStandings(g *gocui.Gui, v *gocui.View) error {
+	_, err := g.SetCurrentView("standings")
+
+	lastTableView, err := nt.G.ViewByPosition(nt.State.SidebarWidth+1, 1)
+
+	if err != nil {
+		return err
+	}
+
+	nt.State.LastTableView = lastTableView.Name()
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
 // DrawStandings draws the current east and west conference standings in a gocui view
 func (nt *NBATop) DrawStandings() error {
 	width := nt.State.SidebarWidth
@@ -45,8 +62,8 @@ func (nt *NBATop) DrawStandings() error {
 		w := tabwriter.NewWriter(v, 0, 1, 1, '\t', tabwriter.AlignRight)
 		fmt.Fprintln(v, "\n\t\u001b[33mEastern Conference\u001b[0m")
 
-		nt.Views.Standings.EasternConference = append(nt.Views.Standings.EasternConference, "\t\u001b[33mWestern Conference\u001b[0m")
-		standings := append(nt.Views.Standings.EasternConference, nt.Views.Standings.WesternConference...)
+		nt.Views.StandingsView.EasternConference = append(nt.Views.StandingsView.EasternConference, "\t\u001b[33mWestern Conference\u001b[0m")
+		standings := append(nt.Views.StandingsView.EasternConference, nt.Views.StandingsView.WesternConference...)
 
 		for _, team := range standings {
 			if _, err := fmt.Fprintln(w, team); err != nil {
@@ -54,6 +71,32 @@ func (nt *NBATop) DrawStandings() error {
 			}
 		}
 		w.Flush()
+	}
+	return nil
+}
+
+// SetStandingsKeybinds sets the keybindings for the StandingsView
+func (nt *NBATop) SetStandingsKeybinds() error {
+	if err := nt.G.SetKeybinding("standings", 'j', gocui.ModNone, cursorDown); err != nil {
+		return err
+	}
+	if err := nt.G.SetKeybinding("standings", 'k', gocui.ModNone, cursorUp); err != nil {
+		return err
+	}
+	if err := nt.G.SetKeybinding("standings", gocui.KeyEnter, gocui.ModNone, nt.selectTeam); err != nil {
+		return err
+	}
+	if err := nt.G.SetKeybinding("standings", 'g', gocui.ModNone, cursorTop); err != nil {
+		return err
+	}
+	if err := nt.G.SetKeybinding("standings", 'G', gocui.ModNone, cursorBottom); err != nil {
+		return err
+	}
+	if err := nt.G.SetKeybinding("standings", 'K', gocui.ModNone, focusToday); err != nil {
+		return err
+	}
+	if err := nt.G.SetKeybinding("standings", 'L', gocui.ModNone, nt.focusTable); err != nil {
+		return err
 	}
 	return nil
 }

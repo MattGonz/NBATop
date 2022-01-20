@@ -9,6 +9,7 @@ import (
 	"time"
 )
 
+// NBAToday represents today's game schedule from the NBA Data API
 type NBAToday struct {
 	Internal struct {
 		PubDateTime             string `json:"pubDateTime"`
@@ -179,24 +180,25 @@ type NBAToday struct {
 	} `json:"games"`
 }
 
+// GetGamesToday fetches and structures today's schedule, fetched from the NBA Data API
 func GetGamesToday() *NBAToday {
 	today := time.Now().Format("20060102")
 	url := fmt.Sprintf("http://data.nba.net/prod/v2/%s/scoreboard.json", today)
 	response, err := http.Get(url)
 
 	if err != nil {
-		log.Fatal(err)
+		log.Panicln(err)
 	}
 	defer response.Body.Close()
 
 	body, err := ioutil.ReadAll(response.Body)
 	if err != nil {
-		log.Fatal(err)
+		log.Panicln(err)
 	}
 
 	var result *NBAToday
 	if err := json.Unmarshal(body, &result); err != nil {
-		log.Fatal(err)
+		log.Panicln(err)
 	}
 	return result
 }

@@ -7,6 +7,7 @@ import (
 	"net/http"
 )
 
+// TeamGameLog represents all of a team's games in a season, from the NBA Data API
 type TeamGameLog struct {
 	Resource   string `json:"resource"`
 	Parameters struct {
@@ -25,12 +26,12 @@ type TeamGameLog struct {
 }
 
 // GetTeamGameLog gets the game log for a given team ID
-func GetTeamStats(id string) *TeamGameLog {
+func GetTeamGameLog(id string) *TeamGameLog {
 	url := "http://stats.nba.com/stats/teamgamelog/?TeamID=" + id + "&season=2021-22&seasonType=Regular+Season"
 
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
-		log.Fatal(err)
+		log.Panicln(err)
 	}
 
 	req.Header = http.Header{
@@ -42,18 +43,18 @@ func GetTeamStats(id string) *TeamGameLog {
 
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
-		log.Fatal(err)
+		log.Panicln(err)
 	}
 	defer resp.Body.Close()
 
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
-		log.Fatal(err)
+		log.Panicln(err)
 	}
 
 	var result *TeamGameLog
 	if err := json.Unmarshal(body, &result); err != nil {
-		log.Fatal(err)
+		log.Panicln(err)
 	}
 	return result
 }
