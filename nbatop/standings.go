@@ -29,13 +29,10 @@ func NewStandingsView() *StandingsView {
 func (nt *NBATop) focusStandings(g *gocui.Gui, v *gocui.View) error {
 	_, err := g.SetCurrentView("standings")
 
-	lastTableView, err := nt.G.ViewByPosition(nt.State.SidebarWidth+1, 1)
-
 	if err != nil {
 		return err
 	}
 
-	nt.State.LastTableView = lastTableView.Name()
 	if err != nil {
 		return err
 	}

@@ -1,6 +1,8 @@
 package nbatop
 
 import (
+	"log"
+
 	"github.com/jroimartin/gocui"
 )
 
@@ -48,7 +50,7 @@ func (nt *NBATop) selectTeam(g *gocui.Gui, v *gocui.View) error {
 			idx -= 1
 		}
 
-		err := nt.DrawTeamGameLog(nt.State.IdxTeamIdMap[idx])
+		err := nt.DrawTeamGameLog(nt.State.GameLogIdxToTeamID[idx])
 		if err != nil {
 			return err
 		}
@@ -165,12 +167,12 @@ func cursorBottom(g *gocui.Gui, v *gocui.View) error {
 
 // focusTable sets the most recent table view on top, then focuses it
 func (nt *NBATop) focusTable(g *gocui.Gui, v *gocui.View) error {
-
-	_, err := g.SetViewOnTop(nt.State.LastTableView)
+	_, err := g.SetViewOnTop(nt.State.FocusedTableView)
 	if err != nil {
 		return err
 	}
-	v, err = g.SetCurrentView(nt.State.LastTableView)
+
+	v, err = g.SetCurrentView(nt.State.FocusedTableView)
 	if err != nil {
 		return err
 	}
@@ -210,5 +212,47 @@ func cursorDown(g *gocui.Gui, v *gocui.View) error {
 			}
 		}
 	}
+	return nil
+}
+
+func (nt *NBATop) tabLeft(g *gocui.Gui, v *gocui.View) error {
+	v, err := nt.G.ViewByPosition(nt.State.SidebarWidth+1, 1)
+	if err != nil {
+		log.Panicln(err)
+	}
+
+	if nt.State.FocusedTableView == "teamgamelog" {
+		return nil
+	} else if nt.State.FocusedTableView == "boxscore" {
+		nt.FocusTeamGameLog()
+
+	} else if nt.State.FocusedTableView == "playerstats" {
+		nt.FocusBoxScore()
+	} else {
+		log.Panicln("tabLeft: focused view not found")
+	}
+
+	return nil
+}
+
+func (nt *NBATop) tabRight(g *gocui.Gui, v *gocui.View) error {
+	v, err := nt.G.ViewByPosition(nt.State.SidebarWidth+1, 1)
+	if err != nil {
+		log.Panicln(err)
+	}
+
+	if nt.State.FocusedTableView == "teamgamelog" {
+		if nt.Views.BoxScoreView.drawn {
+			nt.FocusBoxScore()
+		}
+	} else if nt.State.FocusedTableView == "boxscore" {
+		return nil
+
+	} else if nt.State.FocusedTableView == "playerstats" {
+		nt.FocusTeamGameLog()
+	} else {
+		log.Panicln("tabRight: focused view not found")
+	}
+
 	return nil
 }

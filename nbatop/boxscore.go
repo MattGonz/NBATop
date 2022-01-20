@@ -27,9 +27,9 @@ func NewBoxScoreView() *BoxScoreView {
 	}
 }
 
-// focusBoxScore sets the boxscore view on top, focuses it
+// FocusBoxScore sets the boxscore view on top, focuses it
 // and changes the title of the table accordingly
-func (nt *NBATop) focusBoxScore() {
+func (nt *NBATop) FocusBoxScore() {
 	_, err := nt.G.SetViewOnTop("boxscore")
 	if err != nil {
 		log.Panicln(err)
@@ -39,12 +39,14 @@ func (nt *NBATop) focusBoxScore() {
 	if err != nil {
 		log.Panicln(err)
 	}
+
 	t.Title = " Game Log |[Box Score]| Player Stats "
+	nt.State.FocusedTableView = t.Name()
 }
 
 // WriteBoxScore writes the current game's box score to the BoxScoreView
 func (nt *NBATop) WriteBoxScore() error {
-	nt.focusBoxScore()
+	nt.FocusBoxScore()
 	v := nt.Views.BoxScoreView.v
 
 	// Clear previous game's data, if any
@@ -65,11 +67,11 @@ func (nt *NBATop) WriteBoxScore() error {
 		// TODO see if we can check sortkeys here and highlight stat leaders
 
 		// players that aren't found in the active players list will not be displayed
-		if nt.State.IdPlayerNameMap[player.PersonID] == "" {
+		if nt.State.PersonIDToPlayerName[player.PersonID] == "" {
 			continue
 		}
 
-		fmt.Fprintf(w, "%s\t", nt.State.IdPlayerNameMap[player.PersonID])
+		fmt.Fprintf(w, "%s\t", nt.State.PersonIDToPlayerName[player.PersonID])
 		fmt.Fprintf(w, "%s\t", player.Pos)
 		fmt.Fprintf(w, "%s\t", player.Min)
 		fmt.Fprintf(w, "%s\t", player.Fgm)
@@ -166,6 +168,12 @@ func (nt *NBATop) SetBoxScoreKeybinds() error {
 		return err
 	}
 	if err := nt.G.SetKeybinding("boxscore", gocui.KeyEnter, gocui.ModNone, nt.selectGame); err != nil {
+		return err
+	}
+	if err := nt.G.SetKeybinding("boxscore", 'A', gocui.ModNone, nt.tabLeft); err != nil {
+		return err
+	}
+	if err := nt.G.SetKeybinding("boxscore", 'D', gocui.ModNone, nt.tabRight); err != nil {
 		return err
 	}
 	return nil

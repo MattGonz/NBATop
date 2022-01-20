@@ -18,18 +18,18 @@ type Views struct {
 }
 
 type State struct {
-	Standings        *api.NBAStandings
-	StandingsSpaces  int
-	GamesToday       *api.NBAToday
-	GamesTodayLength int
-	ActivePlayers    *api.Players
-	IdPlayerNameMap  map[string]string
-	SidebarWidth     int
-	SidebarLength    int
-	Today            string
-	MaxX, MaxY       int
-	IdxTeamIdMap     map[int]string
-	LastTableView    string
+	Standings            *api.NBAStandings
+	StandingsSpaces      int
+	GamesToday           *api.NBAToday
+	GamesTodayLength     int
+	ActivePlayers        *api.Players
+	PersonIDToPlayerName map[string]string
+	SidebarWidth         int
+	SidebarLength        int
+	Today                string
+	MaxX, MaxY           int
+	GameLogIdxToTeamID   map[int]string
+	FocusedTableView     string
 }
 
 type NBATop struct {
@@ -49,12 +49,12 @@ func NewNBATop() *NBATop {
 			BoxScoreView:    NewBoxScoreView(),
 		},
 		State: &State{
-			Standings:       &api.NBAStandings{},
-			GamesToday:      &api.NBAToday{},
-			Today:           time.Now().Format("01-02-2006"),
-			IdPlayerNameMap: make(map[string]string),
-			IdxTeamIdMap:    make(map[int]string),
-			LastTableView:   "table",
+			Standings:            &api.NBAStandings{},
+			GamesToday:           &api.NBAToday{},
+			Today:                time.Now().Format("01-02-2006"),
+			PersonIDToPlayerName: make(map[string]string),
+			GameLogIdxToTeamID:   make(map[int]string),
+			FocusedTableView:     "table",
 		},
 	}
 
@@ -99,7 +99,7 @@ func (nt *NBATop) FormatConferenceStandings() error {
 
 	for i, team := range nt.State.Standings.League.Standard.Conference.East {
 		idx = i
-		nt.State.IdxTeamIdMap[idx] = team.TeamID
+		nt.State.GameLogIdxToTeamID[idx] = team.TeamID
 		name := team.TeamSitesOnly.TeamName + " " + team.TeamSitesOnly.TeamNickname
 
 		wins, err := strconv.Atoi(team.Win)
@@ -119,7 +119,7 @@ func (nt *NBATop) FormatConferenceStandings() error {
 
 	for _, team := range nt.State.Standings.League.Standard.Conference.West {
 		idx += 1
-		nt.State.IdxTeamIdMap[idx] = team.TeamID
+		nt.State.GameLogIdxToTeamID[idx] = team.TeamID
 		name := team.TeamSitesOnly.TeamName + " " + team.TeamSitesOnly.TeamNickname
 
 		wins, err := strconv.Atoi(team.Win)
@@ -168,6 +168,6 @@ func (nt *NBATop) MapPlayerIDs() {
 	for _, player := range nt.State.ActivePlayers.League.Players {
 		fullName := player.FirstName + " " + player.LastName
 		playerID := player.PersonID
-		nt.State.IdPlayerNameMap[playerID] = fullName
+		nt.State.PersonIDToPlayerName[playerID] = fullName
 	}
 }

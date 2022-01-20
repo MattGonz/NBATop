@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strings"
 	"text/tabwriter"
+	"time"
 
 	"github.com/jroimartin/gocui"
 	"github.com/mattgonz/nbatop/api"
@@ -43,6 +44,7 @@ func (nt *NBATop) FocusTeamGameLog() (*gocui.View, error) {
 		return nil, err
 	}
 	t.Title = "[Game Log]| Box Score | Player Stats "
+	nt.State.FocusedTableView = t.Name()
 
 	return t, nil
 }
@@ -55,11 +57,15 @@ func (nt *NBATop) WriteGameLog() error {
 	// Clear previous team's data, if any
 	v.Clear()
 
-	w := tabwriter.NewWriter(v, 1, 1, 2, '\t', tabwriter.AlignRight)
+	w := tabwriter.NewWriter(v, 1, 1, 1, '\t', tabwriter.AlignRight)
 
 	// Write headers
 	for _, header := range nt.Views.TeamGameLogView.headers {
+
+		// FG_PCT -> FG % etc.
 		header = strings.Replace(header, "_", " ", 1)
+		header = strings.Replace(header, "PCT", "%", 1)
+
 		fmt.Fprintf(w, "%s\t ", header)
 	}
 
@@ -68,6 +74,15 @@ func (nt *NBATop) WriteGameLog() error {
 
 	// Write data
 	for _, row := range nt.Views.TeamGameLogView.rowSet {
+
+		// More compact / readable date (Jan 02, 2006 -> 01-02-2006)
+		gameDate, err := time.Parse("Jan 02, 2006", row[2].(string))
+		if err != nil {
+			return err
+		}
+		gameDateFormatted := gameDate.Format("01-02-2006")
+		row[2] = gameDateFormatted
+
 		for _, col := range row[2:] {
 			fmt.Fprint(w, col)
 			fmt.Fprint(w, "\t ")
@@ -119,6 +134,12 @@ func (nt *NBATop) SetTGLKeybinds() error {
 		return err
 	}
 	if err := nt.G.SetKeybinding("teamgamelog", gocui.KeyEnter, gocui.ModNone, nt.selectGame); err != nil {
+		return err
+	}
+	if err := nt.G.SetKeybinding("teamgamelog", 'A', gocui.ModNone, nt.tabLeft); err != nil {
+		return err
+	}
+	if err := nt.G.SetKeybinding("teamgamelog", 'D', gocui.ModNone, nt.tabRight); err != nil {
 		return err
 	}
 	return nil
