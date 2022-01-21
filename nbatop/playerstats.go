@@ -20,7 +20,7 @@ type PlayerStatsView struct {
 	drawn        bool
 }
 
-// NewTeamGameLog creates a new TeamGameLog view
+// NewPlayerStatsView creates a new PlayerStatsView
 func NewPlayerStatsView() *PlayerStatsView {
 	return &PlayerStatsView{
 		v:            &gocui.View{},
@@ -33,7 +33,7 @@ func NewPlayerStatsView() *PlayerStatsView {
 	}
 }
 
-// FocusTeamGameLog sets the teamgamelog view on top, focuses it
+// FocusPlayerStats sets the playerstats view on top, focuses it
 // and changes the title of the table accordingly
 func (nt *NBATop) FocusPlayerStats() (*gocui.View, error) {
 	_, err := nt.G.SetViewOnTop("playerstats")
@@ -51,12 +51,12 @@ func (nt *NBATop) FocusPlayerStats() (*gocui.View, error) {
 	return p, nil
 }
 
-// WriteGameLog writes the current team's data to the TeamGameLogView
+// WritePlayerStats writes the current player's data to the PlayerStatsView
 func (nt *NBATop) WritePlayerStats() error {
 	nt.FocusPlayerStats()
 	v := nt.Views.PlayerStatsView.v
 
-	// Clear previous team's data, if any
+	// Clear previous player's data, if any
 	v.Clear()
 
 	w := tabwriter.NewWriter(v, 1, 1, 1, '\t', tabwriter.AlignRight)
