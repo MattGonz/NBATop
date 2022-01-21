@@ -13,6 +13,7 @@ func (nt *NBATop) SetKeybindings() error {
 	nt.SetTableKeybinds()
 	nt.SetTGLKeybinds()
 	nt.SetBoxScoreKeybinds()
+	nt.SetPlayerStatsKeybinds()
 
 	if err := nt.G.SetKeybinding("", 'q', gocui.ModNone, quit); err != nil {
 		return err

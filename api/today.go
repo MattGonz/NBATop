@@ -180,6 +180,78 @@ type NBAToday struct {
 	} `json:"games"`
 }
 
+// CurrentNBASeason respresents the current NBA season
+type CurrentNBASeason struct {
+	Internal struct {
+		PubDateTime             string `json:"pubDateTime"`
+		IgorPath                string `json:"igorPath"`
+		Xslt                    string `json:"xslt"`
+		XsltForceRecompile      string `json:"xsltForceRecompile"`
+		XsltInCache             string `json:"xsltInCache"`
+		XsltCompileTimeMillis   string `json:"xsltCompileTimeMillis"`
+		XsltTransformTimeMillis string `json:"xsltTransformTimeMillis"`
+		ConsolidatedDomKey      string `json:"consolidatedDomKey"`
+		EndToEndTimeMillis      string `json:"endToEndTimeMillis"`
+	} `json:"_internal"`
+	TeamSitesOnly struct {
+		SeasonStage    int    `json:"seasonStage"`
+		SeasonYear     int    `json:"seasonYear"`
+		RosterYear     int    `json:"rosterYear"`
+		StatsStage     int    `json:"statsStage"`
+		StatsYear      int    `json:"statsYear"`
+		DisplayYear    string `json:"displayYear"`
+		LastPlayByPlay string `json:"lastPlayByPlay"`
+		AllPlayByPlay  string `json:"allPlayByPlay"`
+		PlayerMatchup  string `json:"playerMatchup"`
+		Series         string `json:"series"`
+	} `json:"teamSitesOnly"`
+	SeasonScheduleYear int  `json:"seasonScheduleYear"`
+	ShowPlayoffsClinch bool `json:"showPlayoffsClinch"`
+	Links              struct {
+		AnchorDate                  string `json:"anchorDate"`
+		CurrentDate                 string `json:"currentDate"`
+		Calendar                    string `json:"calendar"`
+		TodayScoreboard             string `json:"todayScoreboard"`
+		CurrentScoreboard           string `json:"currentScoreboard"`
+		Teams                       string `json:"teams"`
+		Scoreboard                  string `json:"scoreboard"`
+		LeagueRosterPlayers         string `json:"leagueRosterPlayers"`
+		AllstarRoster               string `json:"allstarRoster"`
+		LeagueRosterCoaches         string `json:"leagueRosterCoaches"`
+		LeagueSchedule              string `json:"leagueSchedule"`
+		LeagueConfStandings         string `json:"leagueConfStandings"`
+		LeagueDivStandings          string `json:"leagueDivStandings"`
+		LeagueUngroupedStandings    string `json:"leagueUngroupedStandings"`
+		LeagueMiniStandings         string `json:"leagueMiniStandings"`
+		LeagueTeamStatsLeaders      string `json:"leagueTeamStatsLeaders"`
+		LeagueLastFiveGameTeamStats string `json:"leagueLastFiveGameTeamStats"`
+		PreviewArticle              string `json:"previewArticle"`
+		RecapArticle                string `json:"recapArticle"`
+		GameBookPdf                 string `json:"gameBookPdf"`
+		Boxscore                    string `json:"boxscore"`
+		MiniBoxscore                string `json:"miniBoxscore"`
+		Pbp                         string `json:"pbp"`
+		LeadTracker                 string `json:"leadTracker"`
+		PlayerGameLog               string `json:"playerGameLog"`
+		PlayerProfile               string `json:"playerProfile"`
+		PlayerUberStats             string `json:"playerUberStats"`
+		TeamSchedule                string `json:"teamSchedule"`
+		TeamsConfig                 string `json:"teamsConfig"`
+		TeamRoster                  string `json:"teamRoster"`
+		TeamsConfigYear             string `json:"teamsConfigYear"`
+		TeamScheduleYear            string `json:"teamScheduleYear"`
+		TeamLeaders                 string `json:"teamLeaders"`
+		TeamScheduleYear2           string `json:"teamScheduleYear2"`
+		TeamLeaders2                string `json:"teamLeaders2"`
+		TeamICS                     string `json:"teamICS"`
+		TeamICS2                    string `json:"teamICS2"`
+		PlayoffsBracket             string `json:"playoffsBracket"`
+		PlayoffSeriesLeaders        string `json:"playoffSeriesLeaders"`
+		UniversalLinkMapping        string `json:"universalLinkMapping"`
+		TicketLink                  string `json:"ticketLink"`
+	} `json:"links"`
+}
+
 // GetGamesToday fetches and structures today's schedule, fetched from the NBA Data API
 func GetGamesToday() *NBAToday {
 	today := time.Now().Format("20060102")
@@ -201,4 +273,32 @@ func GetGamesToday() *NBAToday {
 		log.Panicln(err)
 	}
 	return result
+}
+
+// GetCurrentSeason fetches and structures information about the current season,
+// fetched from the NBA Data API
+func GetCurrentSeason() *CurrentNBASeason {
+	todayURL := "http://data.nba.net/prod/v3/today.json"
+
+	req, err := http.NewRequest("GET", todayURL, nil)
+	if err != nil {
+		log.Panicln(err)
+	}
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		log.Panicln(err)
+	}
+	defer resp.Body.Close()
+
+	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		log.Panicln(err)
+	}
+
+	var today *CurrentNBASeason
+	if err := json.Unmarshal(body, &today); err != nil {
+		log.Panicln(err)
+	}
+	return today
 }

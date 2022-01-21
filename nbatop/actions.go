@@ -25,40 +25,6 @@ func standingsDown(g *gocui.Gui, v *gocui.View) error {
 	return nil
 }
 
-// selectTeam selects the team at the cursor and displays the team's
-// game log in the main table view
-func (nt *NBATop) selectTeam(g *gocui.Gui, v *gocui.View) error {
-	if v != nil {
-		_, cy := v.Cursor()
-		_, oy := v.Origin()
-
-		// Top 2 lines are headers
-		idx := cy - 2
-
-		// Adjust team index by scroll distance
-		if oy > 0 {
-			idx += oy
-		}
-
-		// Skip top row and Western Conference
-		if idx < 0 || idx == 15 {
-			return nil
-		}
-
-		// Adjust for teams after "Western Conference"
-		if idx > 15 {
-			idx -= 1
-		}
-
-		err := nt.DrawTeamGameLog(nt.State.GameLogIdxToTeamID[idx])
-		if err != nil {
-			return err
-		}
-
-	}
-	return nil
-}
-
 // selectGame selects the game at the cursor and displays the game's
 // box score in the main table view
 func (nt *NBATop) selectGame(g *gocui.Gui, v *gocui.View) error {
@@ -68,6 +34,15 @@ func (nt *NBATop) selectGame(g *gocui.Gui, v *gocui.View) error {
 
 		// Top line contains headers
 		idx := cy - 1
+
+		offset := 0
+		callingView := v.Name()
+		if callingView == "teamgamelog" {
+			offset = nt.Views.TeamGameLogView.headerOffset
+		} else if callingView == "playerstats" {
+			offset = nt.Views.PlayerStatsView.headerOffset
+		}
+		idx -= offset
 
 		// Adjust team index by scroll distance
 		if oy > 0 {
@@ -79,7 +54,7 @@ func (nt *NBATop) selectGame(g *gocui.Gui, v *gocui.View) error {
 			return nil
 		}
 
-		nt.DrawBoxScore(idx)
+		nt.DrawBoxScore(idx, callingView)
 	}
 	return nil
 }
@@ -222,7 +197,7 @@ func (nt *NBATop) tabLeft(g *gocui.Gui, v *gocui.View) error {
 	}
 
 	if nt.State.FocusedTableView == "teamgamelog" {
-		return nil
+		nt.FocusPlayerStats()
 	} else if nt.State.FocusedTableView == "boxscore" {
 		nt.FocusTeamGameLog()
 
@@ -246,10 +221,14 @@ func (nt *NBATop) tabRight(g *gocui.Gui, v *gocui.View) error {
 			nt.FocusBoxScore()
 		}
 	} else if nt.State.FocusedTableView == "boxscore" {
-		return nil
+		if nt.Views.PlayerStatsView.drawn {
+			nt.FocusPlayerStats()
+		}
 
 	} else if nt.State.FocusedTableView == "playerstats" {
-		nt.FocusTeamGameLog()
+		if nt.Views.TeamGameLogView.drawn {
+			nt.FocusTeamGameLog()
+		}
 	} else {
 		log.Panicln("tabRight: focused view not found")
 	}

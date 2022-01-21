@@ -10,6 +10,7 @@ import (
 	"time"
 )
 
+// Players represents all of the active NBA players during a given season
 type Players struct {
 	Internal struct {
 		PubDateTime             string `json:"pubDateTime"`
@@ -179,11 +180,15 @@ type Players struct {
 
 // GetPlayers fetches and structures this season's active players, fetched from the NBA Data API
 func GetPlayers() *Players {
+	// TODO currently gets this year's active players, but we want to
+	// pass a year here (currently a race condition / too slow otherwise)
+	// -- consider caching
+
 	t := time.Now()
 	month := t.Month()
 	year := t.Year()
 
-	// this year's season hasn't started, roll back a year
+	// (HACK) this year's season hasn't started, roll back a year
 	if month < 9 {
 		year -= 1
 	}

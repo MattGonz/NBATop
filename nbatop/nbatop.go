@@ -15,9 +15,11 @@ type Views struct {
 	TableView       *EmptyTableView
 	TeamGameLogView *TeamGameLogView
 	BoxScoreView    *BoxScoreView
+	PlayerStatsView *PlayerStatsView
 }
 
 type State struct {
+	CurrentSeason        *api.CurrentNBASeason
 	Standings            *api.NBAStandings
 	StandingsSpaces      int
 	GamesToday           *api.NBAToday
@@ -29,6 +31,8 @@ type State struct {
 	Today                string
 	MaxX, MaxY           int
 	GameLogIdxToTeamID   map[int]string
+	GameLogIdxToTeamName map[int]string
+	TeamIDToTeamName     map[string]string
 	FocusedTableView     string
 }
 
@@ -47,6 +51,7 @@ func NewNBATop() *NBATop {
 			TableView:       NewTableView(),
 			TeamGameLogView: NewTeamGameLogView(),
 			BoxScoreView:    NewBoxScoreView(),
+			PlayerStatsView: NewPlayerStatsView(),
 		},
 		State: &State{
 			Standings:            &api.NBAStandings{},
@@ -54,6 +59,8 @@ func NewNBATop() *NBATop {
 			Today:                time.Now().Format("01-02-2006"),
 			PersonIDToPlayerName: make(map[string]string),
 			GameLogIdxToTeamID:   make(map[int]string),
+			GameLogIdxToTeamName: make(map[int]string),
+			TeamIDToTeamName:     make(map[string]string),
 			FocusedTableView:     "table",
 		},
 	}
@@ -100,6 +107,8 @@ func (nt *NBATop) FormatConferenceStandings() error {
 	for i, team := range nt.State.Standings.League.Standard.Conference.East {
 		idx = i
 		nt.State.GameLogIdxToTeamID[idx] = team.TeamID
+		nt.State.GameLogIdxToTeamName[idx] = team.TeamSitesOnly.TeamName + " " + team.TeamSitesOnly.TeamNickname
+		nt.State.TeamIDToTeamName[team.TeamID] = team.TeamSitesOnly.TeamName + " " + team.TeamSitesOnly.TeamNickname
 		name := team.TeamSitesOnly.TeamName + " " + team.TeamSitesOnly.TeamNickname
 
 		wins, err := strconv.Atoi(team.Win)
@@ -120,6 +129,8 @@ func (nt *NBATop) FormatConferenceStandings() error {
 	for _, team := range nt.State.Standings.League.Standard.Conference.West {
 		idx += 1
 		nt.State.GameLogIdxToTeamID[idx] = team.TeamID
+		nt.State.GameLogIdxToTeamName[idx] = team.TeamSitesOnly.TeamName + " " + team.TeamSitesOnly.TeamNickname
+		nt.State.TeamIDToTeamName[team.TeamID] = team.TeamSitesOnly.TeamName + " " + team.TeamSitesOnly.TeamNickname
 		name := team.TeamSitesOnly.TeamName + " " + team.TeamSitesOnly.TeamNickname
 
 		wins, err := strconv.Atoi(team.Win)

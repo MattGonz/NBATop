@@ -15,6 +15,12 @@ func main() {
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
+		nt.State.CurrentSeason = api.GetCurrentSeason()
+	}()
+
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
 		nt.State.ActivePlayers = api.GetPlayers()
 		nt.MapPlayerIDs()
 	}()

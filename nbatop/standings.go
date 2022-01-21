@@ -44,16 +44,19 @@ func (nt *NBATop) DrawStandings() error {
 	width := nt.State.SidebarWidth
 	length := nt.State.SidebarLength
 	startY := nt.State.GamesTodayLength
+
 	if v, err := nt.G.SetView("standings", 0, startY, width-1, length); err != nil {
 		if err != gocui.ErrUnknownView {
 			return err
 		}
-		nt.G.SetCurrentView("standings")
-
+		nt.Views.StandingsView.v = v
 		v.Highlight = true
 		v.SelFgColor = gocui.ColorGreen
 		v.Title = "Standings [" + nt.State.Today + "]"
+
+		nt.G.SetCurrentView("standings")
 		v.MoveCursor(0, 2, true)
+
 		fmt.Fprint(v, "\tTeam"+strings.Repeat(" ", nt.State.StandingsSpaces)+"W-L")
 
 		w := tabwriter.NewWriter(v, 0, 1, 1, '\t', tabwriter.AlignRight)

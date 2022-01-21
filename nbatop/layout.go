@@ -8,7 +8,7 @@ import (
 // layout calculates the general layout and draws the initial views
 func (nt *NBATop) layout(g *gocui.Gui) error {
 	nt.State.MaxX, nt.State.MaxY = nt.G.Size()
-	nt.State.GamesTodayLength = (utils.Min(nt.State.MaxY/2, nt.Views.TodayView.NumLines+2) / 3 * 3) - 2
+	nt.State.GamesTodayLength = (utils.Min(nt.State.MaxY/2, nt.Views.TodayView.NumLines+4) / 3 * 3) - 2
 
 	easternConference := nt.Views.StandingsView.EasternConference
 	westernConference := nt.Views.StandingsView.WesternConference
