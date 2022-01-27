@@ -1,5 +1,5 @@
 # NBATop
-A [gocui](https://github.com/jroimartin/gocui) terminal UI for NBA stats!
+A [gocui](https://github.com/jroimartin/gocui) terminal UI for NBA stats (with [vim](https://en.wikipedia.org/wiki/Vim_(text_editor))-like keybinds)
 
 ### Build from source
 ```
@@ -27,7 +27,7 @@ go build -o nbatop main.go
 - [ ] Horizontal scrolling
 - [ ] UI formatting keybinds
 - [ ] Table sorting
-- [ ] Fuzzing finding
+- [ ] Fuzzing finding / better navigation keybinds
 
 
 
