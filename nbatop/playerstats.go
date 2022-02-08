@@ -126,6 +126,8 @@ func (ps *PlayerStatsView) Write() {
 		row[3] = gameDateFormatted
 
 		for _, col := range row[3:] {
+			colStr := fmt.Sprintf("%v", col)
+			col = strings.Replace(colStr, "<nil>", "..", 1)
 			fmt.Fprint(w, col)
 			fmt.Fprint(w, "\t ")
 		}
