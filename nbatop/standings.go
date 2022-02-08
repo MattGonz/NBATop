@@ -28,14 +28,10 @@ func NewStandingsView() *StandingsView {
 // focusStandings focuses the standings view and stores the name of the most recently used table view
 func (nt *NBATop) focusStandings(g *gocui.Gui, v *gocui.View) error {
 	_, err := g.SetCurrentView("standings")
-
 	if err != nil {
 		return err
 	}
 
-	if err != nil {
-		return err
-	}
 	return nil
 }
 

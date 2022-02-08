@@ -334,7 +334,8 @@ type BoxScore struct {
 // GetBoxScore fetches and structures the box score of a given game date and ID,
 // from the NBA Data API
 func GetBoxScore(gameDate, gameID string) *BoxScore {
-	time, err := time.Parse("01-02-2006", gameDate)
+	layout := "Jan 02, 2006"
+	time, err := time.Parse(layout, gameDate)
 	if err != nil {
 		log.Panicln(err)
 	}

@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/jroimartin/gocui"
+	"github.com/mattgonz/nbatop/api"
 )
 
 type TodayView struct {
@@ -60,6 +61,63 @@ func (nt *NBATop) DrawToday() error {
 	return nil
 }
 
+// selectGameToday selects a game in the TodayView and displays it in the BoxScoreView
+func (nt *NBATop) selectGameToday(g *gocui.Gui, v *gocui.View) error {
+	if v != nil {
+		_, cy := v.Cursor()
+		_, oy := v.Origin()
+
+		idx := cy
+
+		// Adjust team index by scroll distance
+		if oy > 0 {
+			idx += oy
+		}
+
+		// line := strings.Split(v.BufferLines()[idx], "\t")
+		// lineLen := len(line)
+		gameInfo := nt.State.GamesTodayIdxToGame[idx]
+		gameID := gameInfo[0]
+		gameDate := gameInfo[1]
+		matchup := gameInfo[2]
+
+		nt.UpdateBoxScoreData(gameID, gameDate, matchup)
+
+		err := nt.Views.BoxScoreView.Draw()
+		if err != nil {
+			return err
+		}
+
+		nt.State.FocusedTableView = "boxscore"
+		nt.UpdateTableTitle()
+
+		nt.State.LastSidebarView = "today"
+	}
+	return nil
+}
+
+// refreshToday refreshes the games in the TodayView
+func (nt *NBATop) refreshToday(g *gocui.Gui, v *gocui.View) error {
+	x1 := nt.State.SidebarWidth - 1
+
+	v.Clear()
+
+	nt.State.GamesToday = api.GetGamesToday()
+	nt.FormatGamesToday()
+
+	today := nt.Views.TodayView
+
+	for _, game := range today.Games {
+		startTime := game[0]
+		gameInfo := game[1]
+		timeSpaces := strings.Repeat(" ", ((x1-2)-len(startTime))/2)
+		gameSpaces := strings.Repeat(" ", ((x1-2)-len(gameInfo))/2)
+		fmt.Fprintln(v, timeSpaces+startTime)
+		fmt.Fprintln(v, gameSpaces+gameInfo+"\n")
+	}
+	return nil
+}
+
 // SetTodayKeybinds sets the keybindings for the TodayView
 func (nt *NBATop) SetTodayKeybinds() error {
 	if err := nt.G.SetKeybinding("today", 'j', gocui.ModNone, todayNext); err != nil {
@@ -72,6 +130,12 @@ func (nt *NBATop) SetTodayKeybinds() error {
 		return err
 	}
 	if err := nt.G.SetKeybinding("today", 'L', gocui.ModNone, nt.focusTable); err != nil {
+		return err
+	}
+	if err := nt.G.SetKeybinding("today", gocui.KeyEnter, gocui.ModNone, nt.selectGameToday); err != nil {
+		return err
+	}
+	if err := nt.G.SetKeybinding("today", 'r', gocui.ModNone, nt.refreshToday); err != nil {
 		return err
 	}
 	return nil

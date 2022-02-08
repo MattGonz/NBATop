@@ -10,7 +10,7 @@ import (
 func (nt *NBATop) SetKeybindings() error {
 	nt.SetTodayKeybinds()
 	nt.SetStandingsKeybinds()
-	nt.SetTableKeybinds()
+	nt.SetGenericTableKeybinds()
 	nt.SetTGLKeybinds()
 	nt.SetBoxScoreKeybinds()
 	nt.SetPlayerStatsKeybinds()

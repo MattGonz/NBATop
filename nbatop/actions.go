@@ -2,24 +2,51 @@ package nbatop
 
 import (
 	"log"
+	"strings"
 
 	"github.com/jroimartin/gocui"
 )
 
-// standingsDown moves the cursor down one row
-func standingsDown(g *gocui.Gui, v *gocui.View) error {
+// selectTeam selects the team at the cursor and displays the team's
+// game log in the TeamGameLogView
+func (nt *NBATop) selectTeam(g *gocui.Gui, v *gocui.View) error {
 	if v != nil {
-		cx, cy := v.Cursor()
-		ox, oy := v.Origin()
+		_, cy := v.Cursor()
+		_, oy := v.Origin()
 
-		if oy+cy+1 > 32 {
+		// Top 2 lines are headers
+		idx := cy - 2
+
+		// Adjust team index by scroll distance
+		if oy > 0 {
+			idx += oy
+		}
+
+		// Skip top row and Western Conference
+		if idx < 0 || idx == 15 {
 			return nil
 		}
 
-		if err := v.SetCursor(cx, cy+1); err != nil {
-			if err := v.SetOrigin(ox, oy+1); err != nil {
-				return err
-			}
+		// Adjust for teams after "Western Conference"
+		if idx > 15 {
+			idx -= 1
+		}
+
+		teamID := nt.Views.TeamGameLogView.GameLogIdxToTeamID[idx]
+		teamName := nt.Views.TeamGameLogView.GameLogIdxToTeamName[idx]
+
+		nt.UpdateGameLogData(teamID, teamName)
+
+		err := nt.Views.TeamGameLogView.Draw()
+		if err != nil {
+			return err
+		}
+
+		nt.State.FocusedTableView = "teamgamelog"
+		nt.UpdateTableTitle()
+
+		if v.Name() == "standings" {
+			nt.State.LastSidebarView = "standings"
 		}
 	}
 	return nil
@@ -32,55 +59,120 @@ func (nt *NBATop) selectGame(g *gocui.Gui, v *gocui.View) error {
 		_, cy := v.Cursor()
 		_, oy := v.Origin()
 
-		// Top line contains headers
-		idx := cy - 1
-
-		offset := 0
-		callingView := v.Name()
-		if callingView == "teamgamelog" {
-			offset = nt.Views.TeamGameLogView.headerOffset
-		} else if callingView == "playerstats" {
-			offset = nt.Views.PlayerStatsView.headerOffset
-		}
-		idx -= offset
+		idx := cy
 
 		// Adjust team index by scroll distance
 		if oy > 0 {
 			idx += oy
 		}
 
-		// Skip top row
-		if idx < 0 {
+		line := strings.Split(v.BufferLines()[idx], "\t")
+		lineLen := len(line)
+
+		// Ignore lines that aren't games
+		if lineLen < 4 {
 			return nil
 		}
 
-		nt.DrawBoxScore(idx, callingView)
+		// Ignore header row
+		if line[0] == "GAME DATE" {
+			return nil
+		}
+
+		gameID := strings.TrimSpace(line[lineLen-3])
+		gameDate := strings.TrimSpace(line[lineLen-2])
+		matchup := strings.TrimSpace(line[lineLen-1])
+
+		nt.UpdateBoxScoreData(gameID, gameDate, matchup)
+
+		err := nt.Views.BoxScoreView.Draw()
+		if err != nil {
+			return err
+		}
+
+		nt.State.FocusedTableView = "boxscore"
+		nt.UpdateTableTitle()
 	}
 	return nil
 }
 
-// standingsUp moves the cursor up one row
-func standingsUp(g *gocui.Gui, v *gocui.View) error {
+// selectPlayer selects the player at the cursor and displays the player's
+// stats in the PlayerStatsView
+func (nt *NBATop) selectPlayer(g *gocui.Gui, v *gocui.View) error {
 	if v != nil {
-		ox, oy := v.Origin()
-		cx, cy := v.Cursor()
+		_, cy := v.Cursor()
+		_, oy := v.Origin()
 
-		if err := v.SetCursor(cx, cy-1); err != nil && oy > 0 {
-			if err := v.SetOrigin(ox, oy-1); err != nil {
-				return err
-			}
+		idx := cy
+
+		// Adjust player index by scroll distance
+		if oy > 0 {
+			idx += oy
 		}
+
+		line := strings.Split(v.BufferLines()[idx], "\t")
+		lineLen := len(line)
+
+		// Ignore lines that aren't player stats
+		if lineLen < 5 {
+			return nil
+		}
+
+		// Ignore header rows
+		if line[0] == "NAME" {
+			return nil
+		}
+
+		var personID, teamID string
+
+		personID = strings.TrimSpace(line[lineLen-3])
+		teamID = strings.TrimSpace(line[lineLen-1])
+
+		// Players that did not start will not have a position
+		// This adjusts the line index to account for this
+		if personID == "Internal:" || teamID == "" {
+			personID = strings.TrimSpace(line[lineLen-2])
+			teamID = strings.TrimSpace(line[lineLen-1])
+		}
+
+		playerName := nt.State.PersonIDToPlayerName[personID]
+		nt.UpdatePlayerStatsData(teamID, personID, playerName)
+
+		err := nt.Views.PlayerStatsView.Draw()
+		if err != nil {
+			return err
+		}
+
+		nt.State.FocusedTableView = "playerstats"
+		nt.UpdateTableTitle()
 	}
 	return nil
 }
 
 // cursorTop moves the cursor to the top of the view
 func cursorTop(g *gocui.Gui, v *gocui.View) error {
-	if v != nil { // _, oy := v.Origin() cx, cy := v.Cursor()
+	if v != nil {
 		if err := v.SetOrigin(0, 0); err != nil {
 			return err
 		}
 		v.SetCursor(0, 0)
+	}
+	return nil
+}
+
+// cursorBottom moves the cursor to the bottom of the view
+func cursorBottom(g *gocui.Gui, v *gocui.View) error {
+	if v != nil {
+		_, maxY := v.Size()
+		bottom := len(v.BufferLines()) - 3
+
+		if err := v.SetCursor(0, bottom); err != nil {
+			if err := v.SetOrigin(0, bottom-maxY+2); err != nil {
+				return err
+			}
+		}
+
+		v.SetCursor(0, maxY-1)
 	}
 	return nil
 }
@@ -123,23 +215,6 @@ func todayNext(g *gocui.Gui, v *gocui.View) error {
 	return nil
 }
 
-// cursorBottom moves the cursor to the bottom of the view
-func cursorBottom(g *gocui.Gui, v *gocui.View) error {
-	if v != nil {
-		_, maxY := v.Size()
-		// _, oy := v.Origin()
-		// _, cy := v.Cursor()
-		if err := v.SetCursor(0, 31); err != nil {
-			if err := v.SetOrigin(0, 31-maxY+2); err != nil {
-				return err
-			}
-		}
-
-		v.SetCursor(0, maxY-1)
-	}
-	return nil
-}
-
 // focusTable sets the most recent table view on top, then focuses it
 func (nt *NBATop) focusTable(g *gocui.Gui, v *gocui.View) error {
 	_, err := g.SetViewOnTop(nt.State.FocusedTableView)
@@ -147,7 +222,20 @@ func (nt *NBATop) focusTable(g *gocui.Gui, v *gocui.View) error {
 		return err
 	}
 
+	nt.State.LastSidebarView = v.Name()
+
 	v, err = g.SetCurrentView(nt.State.FocusedTableView)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// focusSidebar focuses most recent sidebar view
+func (nt *NBATop) focusSidebar(g *gocui.Gui, v *gocui.View) error {
+	_, err := g.SetCurrentView(nt.State.LastSidebarView)
+
 	if err != nil {
 		return err
 	}
@@ -190,48 +278,52 @@ func cursorDown(g *gocui.Gui, v *gocui.View) error {
 	return nil
 }
 
+// tabLeft focuses the table view to the left of the current tab
 func (nt *NBATop) tabLeft(g *gocui.Gui, v *gocui.View) error {
+	var focused string
+
 	v, err := nt.G.ViewByPosition(nt.State.SidebarWidth+1, 1)
 	if err != nil {
 		log.Panicln(err)
 	}
+	focused = v.Name()
 
-	if nt.State.FocusedTableView == "teamgamelog" {
-		nt.FocusPlayerStats()
-	} else if nt.State.FocusedTableView == "boxscore" {
-		nt.FocusTeamGameLog()
-
-	} else if nt.State.FocusedTableView == "playerstats" {
-		nt.FocusBoxScore()
+	if focused == "teamgamelog" {
+		nt.Views.PlayerStatsView.Focus()
+	} else if focused == "boxscore" {
+		nt.Views.TeamGameLogView.Focus()
+	} else if focused == "playerstats" {
+		nt.Views.BoxScoreView.Focus()
 	} else {
 		log.Panicln("tabLeft: focused view not found")
 	}
 
+	nt.UpdateTableTitle()
+
 	return nil
 }
 
+// tabRight focuses the table view to the right of the current tab
 func (nt *NBATop) tabRight(g *gocui.Gui, v *gocui.View) error {
+	var focused string
+
 	v, err := nt.G.ViewByPosition(nt.State.SidebarWidth+1, 1)
 	if err != nil {
 		log.Panicln(err)
 	}
+	focused = v.Name()
 
-	if nt.State.FocusedTableView == "teamgamelog" {
-		if nt.Views.BoxScoreView.drawn {
-			nt.FocusBoxScore()
-		}
-	} else if nt.State.FocusedTableView == "boxscore" {
-		if nt.Views.PlayerStatsView.drawn {
-			nt.FocusPlayerStats()
-		}
-
-	} else if nt.State.FocusedTableView == "playerstats" {
-		if nt.Views.TeamGameLogView.drawn {
-			nt.FocusTeamGameLog()
-		}
+	if focused == "teamgamelog" {
+		nt.Views.BoxScoreView.Focus()
+	} else if focused == "boxscore" {
+		nt.Views.PlayerStatsView.Focus()
+	} else if focused == "playerstats" {
+		nt.Views.TeamGameLogView.Focus()
 	} else {
 		log.Panicln("tabRight: focused view not found")
 	}
+
+	nt.UpdateTableTitle()
 
 	return nil
 }

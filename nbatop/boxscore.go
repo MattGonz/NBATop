@@ -2,107 +2,145 @@ package nbatop
 
 import (
 	"fmt"
-	"io"
 	"log"
+	"strconv"
+	"strings"
 	"text/tabwriter"
 
 	"github.com/jroimartin/gocui"
 	"github.com/mattgonz/nbatop/api"
+	"github.com/mattgonz/nbatop/utils"
 )
 
 type BoxScoreView struct {
-	v            *gocui.View
-	name         string
-	headerOffset int
-	gameDate     string
-	matchup      string
-	boxScore     *api.BoxScore
-	drawn        bool
+	TableView
+	gameDate             string
+	BoxScore             *api.BoxScore
+	PersonIDToPlayerName map[string]string
+	TeamIDToTeamName     map[string]string
 }
 
-// NewBoxScore creates a new box score view
-func NewBoxScoreView() *BoxScoreView {
-	return &BoxScoreView{
-		v:            &gocui.View{},
-		name:         "boxscore",
-		matchup:      " Box Score ",
-		headerOffset: 0,
-		boxScore:     &api.BoxScore{},
-		drawn:        false,
+// NewBoxScore creates a new BoxScoreView
+func (nt *NBATop) NewBoxScoreView() *BoxScoreView {
+	bs := &BoxScoreView{
+		TableView: TableView{
+			g:            nt.G,
+			v:            &gocui.View{},
+			name:         "boxscore",
+			headerOffset: 6,
+			headers:      make([]string, 0),
+			rowSet:       make([][]interface{}, 0),
+			title:        "Box Score",
+			x0:           nt.State.SidebarWidth,
+			y0:           0,
+			x1:           nt.State.MaxX - 1,
+			y1:           nt.State.MaxY - 1,
+		},
+		gameDate:             "",
+		BoxScore:             &api.BoxScore{},
+		PersonIDToPlayerName: nt.State.PersonIDToPlayerName,
+		TeamIDToTeamName:     nt.State.TeamIDToTeamName,
+	}
+	bs.TableCreatorWriter = bs
+	return bs
+}
+
+// UpdateBoxScoreData fetches the given game's data and
+// updates the box score data and title accordingly
+func (nt *NBATop) UpdateBoxScoreData(gameID, gameDate, matchup string) {
+	boxScore := api.GetBoxScore(gameDate, gameID)
+
+	nt.Views.BoxScoreView.BoxScore = boxScore
+
+	nt.Views.BoxScoreView.gameDate = gameDate
+	nt.Views.BoxScoreView.title = matchup
+}
+
+// Create creates the view that holds a game's box score
+func (bs *BoxScoreView) Create() {
+	if v, err := bs.g.SetView(bs.name, bs.x0, bs.y0, bs.x1, bs.y1); err != nil {
+		if err != gocui.ErrUnknownView {
+			log.Panicln(err)
+		}
+		v.Title = bs.title
+		v.Highlight = true
+		v.SelFgColor = gocui.ColorGreen
+		bs.v = v
 	}
 }
 
-// FocusBoxScore sets the boxscore view on top, focuses it
-// and changes the title of the table accordingly
-func (nt *NBATop) FocusBoxScore() {
-	_, err := nt.G.SetViewOnTop("boxscore")
-	if err != nil {
-		log.Panicln(err)
-	}
-
-	t, err := nt.G.SetCurrentView("boxscore")
-	if err != nil {
-		log.Panicln(err)
-	}
-
-	t.Title = " " + nt.Views.TeamGameLogView.teamName + " |[" + nt.Views.BoxScoreView.matchup + " " + nt.Views.BoxScoreView.gameDate + "]| " + nt.Views.PlayerStatsView.playerName + " "
-	nt.State.FocusedTableView = t.Name()
-}
-
-// WriteBoxScore writes the current game's box score to the BoxScoreView
-func (nt *NBATop) WriteBoxScore() error {
-	nt.FocusBoxScore()
-	v := nt.Views.BoxScoreView.v
+// Write writes the current game's box score to the BoxScoreView
+func (bs *BoxScoreView) Write() {
+	bs.Focus()
+	v := bs.v
 
 	// Clear previous game's data, if any
 	v.Clear()
 
-	// TODO think through window-based padding throughout
-	padding := 0
-	if nt.State.MaxX < 150 {
-		padding = 1
+	w := tabwriter.NewWriter(v, 1, 1, 1, '\t', tabwriter.AlignRight)
+
+	homeTeamPoints := bs.BoxScore.BasicGameData.HTeam.Score
+	awayTeamPoints := bs.BoxScore.BasicGameData.VTeam.Score
+	isGameOn := bs.BoxScore.BasicGameData.IsGameActivated
+
+	var gameLine string
+	if strings.Contains(bs.title, "@") {
+		gameLine = fmt.Sprintf("(%s) %s (%s)", awayTeamPoints, bs.title, homeTeamPoints)
 	} else {
-		padding = 2
+		gameLine = fmt.Sprintf("(%s) %s (%s)", homeTeamPoints, bs.title, awayTeamPoints)
 	}
 
-	w := tabwriter.NewWriter(v, 0, 1, padding, '\t', tabwriter.AlignRight)
+	gameDate := bs.gameDate
 
-	homeTeamPoints := nt.Views.BoxScoreView.boxScore.BasicGameData.HTeam.Score
-	awayTeamPoints := nt.Views.BoxScoreView.boxScore.BasicGameData.VTeam.Score
+	if isGameOn {
+		quarter := strconv.Itoa(bs.BoxScore.BasicGameData.Period.Current)
+		time := bs.BoxScore.BasicGameData.Clock
+		if time == "" {
+			if bs.BoxScore.BasicGameData.Period.IsHalftime {
+				time = "Halftime"
+			} else {
+				time = "End Q" + quarter
+			}
+			utils.PrintFigure(w, time, v)
+		} else {
+			utils.PrintFigure(w, "(Q"+quarter+" - "+time+")", v)
+		}
+	} else {
+		fmt.Fprintln(w, "")
+	}
+	utils.PrintFigure(w, gameLine, v)
+	utils.PrintFigure(w, gameDate, v)
+	fmt.Fprintln(w, "")
 
-	gameLine := fmt.Sprintf("(%s) %s (%s)", awayTeamPoints, nt.Views.BoxScoreView.matchup, homeTeamPoints)
-	gameDate := nt.Views.BoxScoreView.gameDate
-
-	printFigure(w, gameLine+"\n"+gameDate)
-
-	nt.Views.BoxScoreView.headerOffset = len(v.BufferLines()) - 1
-	v.SetCursor(0, nt.Views.BoxScoreView.headerOffset)
-
-	printBoxScoreHeaders(w)
+	v.SetCursor(0, bs.headerOffset)
 
 	// HACK for separating teams, TODO personID to player (not just name)
-	// awayTeamID := nt.Views.BoxScoreView.boxScore.Stats.ActivePlayers[0].TeamID
-	// awayTeamName := nt.State.TeamIDToTeamName[awayTeamID]
-	// fmt.Fprintln(w, awayTeamName)
-	// homePrinted := false
+	awayTeamID := bs.BoxScore.Stats.ActivePlayers[0].TeamID
+	awayTeamName := bs.TeamIDToTeamName[awayTeamID]
 
-	for _, player := range nt.Views.BoxScoreView.boxScore.Stats.ActivePlayers {
+	utils.PrintName(w, awayTeamName, v)
+	printBoxScoreHeaders(w)
+	homePrinted := false
+
+	for _, player := range bs.BoxScore.Stats.ActivePlayers {
 		// TODO see if we can check sortkeys here and highlight stat leaders
 
 		// players that aren't found in the active players list will not be displayed
-		if nt.State.PersonIDToPlayerName[player.PersonID] == "" {
+		if bs.PersonIDToPlayerName[player.PersonID] == "" {
 			continue
 		}
 
 		// HACK for separating teams, TODO personID to player (not just name)
-		// if player.TeamID != awayTeamID && !homePrinted {
-		// 	homeTeamName := nt.State.TeamIDToTeamName[player.TeamID]
-		// 	fmt.Fprintln(w, "")
-		// 	fmt.Fprintln(w, homeTeamName)
-		// 	homePrinted = true
-		// }
+		if player.TeamID != awayTeamID && !homePrinted {
+			homeTeamName := bs.TeamIDToTeamName[player.TeamID]
+			// fmt.Fprintln(w, "")
+			// fmt.Fprintf(w, "\u001b[33m%s\u001b[0m\n", homeTeamName)
+			utils.PrintName(w, homeTeamName, v)
+			printBoxScoreHeaders(w)
+			homePrinted = true
+		}
 
-		fmt.Fprintf(w, "%s\t", nt.State.PersonIDToPlayerName[player.PersonID])
+		fmt.Fprintf(w, "%s\t", bs.PersonIDToPlayerName[player.PersonID])
 		fmt.Fprintf(w, "%s\t", player.Pos)
 		fmt.Fprintf(w, "%s\t", player.Min)
 		fmt.Fprintf(w, "%s\t", player.Fgm)
@@ -124,57 +162,19 @@ func (nt *NBATop) WriteBoxScore() error {
 		fmt.Fprintf(w, "%s\t", player.PFouls)
 		fmt.Fprintf(w, "%s\t", player.Points)
 		fmt.Fprintf(w, "%s\t", player.PlusMinus)
+		utils.BlackPrint(w, "Internal:", true)
+		utils.BlackPrint(w, player.PersonID, true)
+		utils.BlackPrint(w, player.TeamID, false)
 		// fmt.Fprintf(w, "%s\t", player.Dnp)
 
 		fmt.Fprintln(w, "")
 	}
 	w.Flush()
-	return nil
 }
 
-// DrawBoxScore draws the box score of the game at the given TeamGameLog game index
-func (nt *NBATop) DrawBoxScore(idx int, callingView string) error {
-	// TODO game score
-
-	var gameID string
-	var gameDate string
-	var matchup string
-
-	if callingView == "teamgamelog" {
-		gameID = nt.Views.TeamGameLogView.rowSet[idx][1].(string)
-		gameDate = nt.Views.TeamGameLogView.rowSet[idx][2].(string)
-		matchup = nt.Views.TeamGameLogView.rowSet[idx][3].(string)
-	} else if callingView == "playerstats" {
-		gameID = nt.Views.PlayerStatsView.rowSet[idx][2].(string)
-		gameDate = nt.Views.PlayerStatsView.rowSet[idx][3].(string)
-		matchup = nt.Views.PlayerStatsView.rowSet[idx][4].(string)
-	}
-
-	boxScore := api.GetBoxScore(gameDate, gameID)
-	nt.Views.BoxScoreView.gameDate = gameDate
-	nt.Views.BoxScoreView.matchup = matchup
-	nt.Views.BoxScoreView.boxScore = boxScore
-
-	// TODO write a generalized "CreateIfNotExists" function
-	// Check if the view already exists, create view accordingly
-	if nt.Views.BoxScoreView.drawn {
-		nt.WriteBoxScore()
-	} else {
-		if v, err := nt.G.SetView("boxscore", nt.State.SidebarWidth, 0, nt.State.MaxX-1, nt.State.MaxY-1); err != nil {
-			if err != gocui.ErrUnknownView {
-				return err
-			}
-			v.Highlight = true
-			nt.Views.BoxScoreView.drawn = true
-			nt.Views.BoxScoreView.v = v
-			nt.WriteBoxScore()
-		}
-	}
-	return nil
-}
-
-// printBoxScoreHeaders writes the column names for the BoxScoreView
-func printBoxScoreHeaders(w io.Writer) {
+// printBoxScoreHeaders writes the column names for the BoxScoreView,
+// since they are not returned as headers from the API
+func printBoxScoreHeaders(w *tabwriter.Writer) {
 	fmt.Fprintf(w, "NAME\t")
 	fmt.Fprintf(w, "POS\t")
 	fmt.Fprintf(w, "MIN\t")
@@ -197,41 +197,12 @@ func printBoxScoreHeaders(w io.Writer) {
 	fmt.Fprintf(w, "PF\t")
 	fmt.Fprintf(w, "PTS\t")
 	fmt.Fprintf(w, "+/-\t")
+	utils.BlackPrint(w, "Internal:", true)
+	utils.BlackPrint(w, "PID", true)
+	utils.BlackPrint(w, "TID", false)
 	// fmt.Fprintf(w, "DNP\t")
 
 	fmt.Fprintln(w, "")
-}
-
-// selectPlayer selects the player at the cursor and displays the player's
-// stats in the main table view
-func (nt *NBATop) selectPlayer(g *gocui.Gui, v *gocui.View) error {
-	if v != nil {
-		_, cy := v.Cursor()
-		_, oy := v.Origin()
-
-		// Top line contains headers
-		idx := cy - 1
-
-		offset := nt.Views.BoxScoreView.headerOffset
-		idx -= offset
-
-		// Adjust player index by scroll distance
-		if oy > 0 {
-			idx += oy
-		}
-
-		// Skip top row
-		if idx < 0 {
-			return nil
-		}
-
-		player := nt.Views.BoxScoreView.boxScore.Stats.ActivePlayers[idx]
-		teamID := player.TeamID
-		personID := player.PersonID
-		playerName := nt.State.PersonIDToPlayerName[personID]
-		nt.DrawPlayerGameLog(teamID, personID, playerName)
-	}
-	return nil
 }
 
 // SetBoxScoreKeybinds sets the keybindings for the BoxScoreView
@@ -242,16 +213,22 @@ func (nt *NBATop) SetBoxScoreKeybinds() error {
 	if err := nt.G.SetKeybinding("boxscore", 'k', gocui.ModNone, cursorUp); err != nil {
 		return err
 	}
-	if err := nt.G.SetKeybinding("boxscore", 'H', gocui.ModNone, nt.focusStandings); err != nil {
+	if err := nt.G.SetKeybinding("boxscore", 'G', gocui.ModNone, cursorBottom); err != nil {
+		return err
+	}
+	if err := nt.G.SetKeybinding("boxscore", 'g', gocui.ModNone, cursorTop); err != nil {
+		return err
+	}
+	if err := nt.G.SetKeybinding("boxscore", 'H', gocui.ModNone, nt.focusSidebar); err != nil {
 		return err
 	}
 	if err := nt.G.SetKeybinding("boxscore", gocui.KeyEnter, gocui.ModNone, nt.selectPlayer); err != nil {
 		return err
 	}
-	if err := nt.G.SetKeybinding("boxscore", 'A', gocui.ModNone, nt.tabLeft); err != nil {
+	if err := nt.G.SetKeybinding("boxscore", '[', gocui.ModNone, nt.tabLeft); err != nil {
 		return err
 	}
-	if err := nt.G.SetKeybinding("boxscore", 'D', gocui.ModNone, nt.tabRight); err != nil {
+	if err := nt.G.SetKeybinding("boxscore", ']', gocui.ModNone, nt.tabRight); err != nil {
 		return err
 	}
 	return nil

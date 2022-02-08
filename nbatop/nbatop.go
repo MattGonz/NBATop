@@ -7,12 +7,13 @@ import (
 
 	"github.com/jroimartin/gocui"
 	"github.com/mattgonz/nbatop/api"
+	"github.com/mattgonz/nbatop/utils"
 )
 
 type Views struct {
 	StandingsView   *StandingsView
 	TodayView       *TodayView
-	TableView       *EmptyTableView
+	TableView       *TableView
 	TeamGameLogView *TeamGameLogView
 	BoxScoreView    *BoxScoreView
 	PlayerStatsView *PlayerStatsView
@@ -24,16 +25,18 @@ type State struct {
 	StandingsSpaces      int
 	GamesToday           *api.NBAToday
 	GamesTodayLength     int
+	GamesTodayIdxToGame  map[int][]string
 	ActivePlayers        *api.Players
 	PersonIDToPlayerName map[string]string
+	GameLogIdxToTeamID   map[int]string
+	GameLogIdxToTeamName map[int]string
 	SidebarWidth         int
 	SidebarLength        int
 	Today                string
 	MaxX, MaxY           int
-	GameLogIdxToTeamID   map[int]string
-	GameLogIdxToTeamName map[int]string
 	TeamIDToTeamName     map[string]string
 	FocusedTableView     string
+	LastSidebarView      string
 }
 
 type NBATop struct {
@@ -46,22 +49,21 @@ type NBATop struct {
 func NewNBATop() *NBATop {
 	nbatop := NBATop{
 		Views: &Views{
-			StandingsView:   NewStandingsView(),
-			TodayView:       NewTodayView(),
-			TableView:       NewTableView(),
-			TeamGameLogView: NewTeamGameLogView(),
-			BoxScoreView:    NewBoxScoreView(),
-			PlayerStatsView: NewPlayerStatsView(),
+			StandingsView: NewStandingsView(),
+			TodayView:     NewTodayView(),
+			// TableView:     NewTableView(),
 		},
 		State: &State{
 			Standings:            &api.NBAStandings{},
 			GamesToday:           &api.NBAToday{},
 			Today:                time.Now().Format("01-02-2006"),
+			GamesTodayIdxToGame:  make(map[int][]string),
+			TeamIDToTeamName:     make(map[string]string),
 			PersonIDToPlayerName: make(map[string]string),
 			GameLogIdxToTeamID:   make(map[int]string),
 			GameLogIdxToTeamName: make(map[int]string),
-			TeamIDToTeamName:     make(map[string]string),
 			FocusedTableView:     "table",
+			LastSidebarView:      "standings",
 		},
 	}
 
@@ -80,8 +82,24 @@ func (nt *NBATop) Run() {
 		log.Panicln(err)
 	}
 	defer g.Close()
-
 	nt.G = g
+
+	nt.State.MaxX, nt.State.MaxY = nt.G.Size()
+	nt.State.GamesTodayLength = (utils.Min(nt.State.MaxY/2, nt.Views.TodayView.NumLines+4) / 3 * 3) - 2
+
+	easternConference := nt.Views.StandingsView.EasternConference
+	westernConference := nt.Views.StandingsView.WesternConference
+	longestEast := utils.Longest(easternConference)
+	longestWest := utils.Longest(westernConference)
+
+	nt.State.SidebarLength = utils.Min(len(westernConference)+len(easternConference)+nt.State.GamesTodayLength+3, nt.State.MaxY-1)
+	nt.State.SidebarWidth = utils.Min(utils.Max(longestWest, longestEast)+4, nt.State.MaxX-1)
+	nt.State.StandingsSpaces = utils.Max(longestWest, longestEast) - 9
+
+	nt.Views.TeamGameLogView = nt.NewTeamGameLogView()
+	nt.Views.BoxScoreView = nt.NewBoxScoreView()
+	nt.Views.PlayerStatsView = nt.NewPlayerStatsView()
+
 	g.Cursor = true
 	g.Mouse = true
 	g.Highlight = true
@@ -158,17 +176,49 @@ func (nt *NBATop) FormatConferenceStandings() error {
 func (nt *NBATop) FormatGamesToday() {
 	var games [][]string
 
-	for _, game := range nt.State.GamesToday.Games {
+	for idx, game := range nt.State.GamesToday.Games {
+		var gameInfo string
+		var gameTime string
+
 		homeTeam := game.HTeam
-		homeTeamRecord := " (" + homeTeam.Win + "-" + homeTeam.Loss + ")"
 		awayTeam := game.VTeam
-		awayTeamRecord := "(" + awayTeam.Win + "-" + awayTeam.Loss + ") "
 
-		gameInfo := awayTeamRecord + awayTeam.TriCode + " at " + homeTeam.TriCode + homeTeamRecord
-		// spaces := strings.Repeat(" ", len(gameInfo)/3)
-		startTime := game.StartTimeEastern
+		if game.IsGameActivated {
+			homeTeamPoints := game.HTeam.Score
+			awayTeamPoints := game.VTeam.Score
+			gameInfo = "(" + awayTeamPoints + ") " + awayTeam.TriCode + " at " + homeTeam.TriCode + " (" + homeTeamPoints + ")"
+			quarter := strconv.Itoa(game.Period.Current)
+			gameTime = game.Clock
+			if gameTime == "" {
+				if game.Period.IsHalftime {
+					gameTime = "Halftime"
+				} else {
+					gameTime = "End Q" + quarter
+				}
+			} else {
+				gameTime = "(Q" + quarter + " - " + gameTime + ")"
+			}
+		} else {
+			homeTeamRecord := " (" + homeTeam.Win + "-" + homeTeam.Loss + ")"
+			awayTeamRecord := "(" + awayTeam.Win + "-" + awayTeam.Loss + ") "
 
-		games = append(games, []string{startTime, gameInfo})
+			gameInfo = awayTeamRecord + awayTeam.TriCode + " at " + homeTeam.TriCode + homeTeamRecord
+			// spaces := strings.Repeat(" ", len(gameInfo)/3)
+			gameTime = game.StartTimeEastern
+
+		}
+		games = append(games, []string{gameTime, gameInfo})
+
+		gameID := game.GameID
+		matchup := game.VTeam.TriCode + " @ " + game.HTeam.TriCode
+
+		gameDate, err := time.Parse("20060102", game.StartDateEastern)
+		if err != nil {
+			log.Panicln(err)
+		}
+		gameDateStr := gameDate.Format("Jan 02, 2006")
+
+		nt.State.GamesTodayIdxToGame[idx*3] = []string{gameID, gameDateStr, matchup}
 	}
 	nt.Views.TodayView.Games = games
 	nt.Views.TodayView.NumLines = len(games) * 3

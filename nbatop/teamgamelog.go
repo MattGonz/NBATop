@@ -2,74 +2,94 @@ package nbatop
 
 import (
 	"fmt"
+	"log"
 	"strings"
 	"text/tabwriter"
 	"time"
 
 	"github.com/jroimartin/gocui"
 	"github.com/mattgonz/nbatop/api"
+	"github.com/mattgonz/nbatop/utils"
 )
 
 type TeamGameLogView struct {
-	v            *gocui.View
-	name         string
-	headerOffset int
-	teamID       string
-	teamName     string
-	headers      []string
-	rowSet       [][]interface{}
-	drawn        bool
+	TableView
+	teamID               string
+	TeamName             string
+	GameLogIdxToTeamID   map[int]string
+	GameLogIdxToTeamName map[int]string
 }
 
-// NewTeamGameLog creates a new TeamGameLog view
-func NewTeamGameLogView() *TeamGameLogView {
-	return &TeamGameLogView{
-		v:            &gocui.View{},
-		name:         "teamgamelog",
-		teamID:       "",
-		teamName:     "",
-		headerOffset: 0,
-		headers:      make([]string, 0),
-		rowSet:       make([][]interface{}, 0),
-		drawn:        false,
+// NewTeamGameLogView creates a new TeamGameLogView
+func (nt *NBATop) NewTeamGameLogView() *TeamGameLogView {
+	tgl := &TeamGameLogView{
+		TableView: TableView{
+			g:            nt.G,
+			v:            &gocui.View{},
+			name:         "teamgamelog",
+			headerOffset: 4,
+			headers:      make([]string, 0),
+			rowSet:       make([][]interface{}, 0),
+			title:        " Game Log ",
+			x0:           nt.State.SidebarWidth,
+			y0:           0,
+			x1:           nt.State.MaxX - 1,
+			y1:           nt.State.MaxY - 1,
+		},
+		teamID:               "",
+		TeamName:             "",
+		GameLogIdxToTeamID:   nt.State.GameLogIdxToTeamID,
+		GameLogIdxToTeamName: nt.State.GameLogIdxToTeamName,
+	}
+	tgl.TableCreatorWriter = tgl
+	return tgl
+}
+
+// UpdateGameLogData fetches the given team's data and
+// updates the team game log data and title accordingly
+func (nt *NBATop) UpdateGameLogData(teamID, teamName string) {
+	result := api.GetTeamGameLog(teamID)
+
+	nt.Views.TeamGameLogView.headers = result.ResultSets[0].Headers
+	nt.Views.TeamGameLogView.rowSet = result.ResultSets[0].RowSet
+
+	nt.Views.TeamGameLogView.teamID = teamID
+	nt.Views.TeamGameLogView.TeamName = teamName
+	nt.Views.TeamGameLogView.title = teamName
+}
+
+// Create creates the view that holds a team's game log
+func (tgl *TeamGameLogView) Create() {
+	if v, err := tgl.g.SetView(tgl.name, tgl.x0, tgl.y0, tgl.x1, tgl.y1); err != nil {
+		if err != gocui.ErrUnknownView {
+			log.Panicln(err)
+		}
+		v.Title = tgl.title
+		v.Highlight = true
+		v.SelFgColor = gocui.ColorGreen
+		tgl.v = v
 	}
 }
 
-// FocusTeamGameLog sets the teamgamelog view on top, focuses it
-// and changes the title of the table accordingly
-func (nt *NBATop) FocusTeamGameLog() (*gocui.View, error) {
-	_, err := nt.G.SetViewOnTop("teamgamelog")
-	if err != nil {
-		return nil, err
-	}
-
-	t, err := nt.G.SetCurrentView("teamgamelog")
-	if err != nil {
-		return nil, err
-	}
-	t.Title = "[" + nt.Views.TeamGameLogView.teamName + "]| " + nt.Views.BoxScoreView.matchup + " " + nt.Views.BoxScoreView.gameDate + " | " + nt.Views.PlayerStatsView.playerName + " "
-	nt.State.FocusedTableView = t.Name()
-
-	return t, nil
-}
-
-// WriteGameLog writes the current team's data to the TeamGameLogView
-func (nt *NBATop) WriteGameLog() error {
-	nt.FocusTeamGameLog()
-	v := nt.Views.TeamGameLogView.v
+// Write writes the current team's data to the TeamGameLogView
+func (tgl *TeamGameLogView) Write() {
+	tgl.Focus()
+	v := tgl.v
 
 	// Clear previous team's data, if any
 	v.Clear()
 
 	w := tabwriter.NewWriter(v, 1, 1, 1, '\t', tabwriter.AlignRight)
 
-	printFigure(w, nt.Views.TeamGameLogView.teamName)
+	fmt.Fprintln(w, "")
+	fmt.Fprintln(w, "")
+	utils.PrintFigure(w, tgl.TeamName, v)
+	fmt.Fprintln(w, "")
 
-	nt.Views.TeamGameLogView.headerOffset = len(v.BufferLines()) - 1
-	v.SetCursor(0, nt.Views.TeamGameLogView.headerOffset)
+	v.SetCursor(0, tgl.headerOffset)
 
 	// Write headers
-	for _, header := range nt.Views.TeamGameLogView.headers {
+	for _, header := range tgl.headers[2:] {
 
 		// FG_PCT -> FG % etc.
 		header = strings.Replace(header, "_", " ", 1)
@@ -77,103 +97,44 @@ func (nt *NBATop) WriteGameLog() error {
 
 		fmt.Fprintf(w, "%s\t ", header)
 	}
+	utils.BlackPrint(w, "Internal:", true)
+	utils.BlackPrint(w, tgl.headers[1], true)
+	utils.BlackPrint(w, tgl.headers[2], true)
+	utils.BlackPrint(w, tgl.headers[3], true)
 
 	// Newline after headers to not cut off most recent game
 	fmt.Fprintln(w, "")
 
 	// Write data
-	for _, row := range nt.Views.TeamGameLogView.rowSet {
+	for _, row := range tgl.rowSet {
+		gameID := row[1]
+		gameDateUnf := row[2]
+		matchup := row[3]
 
 		// More compact / readable date (Jan 02, 2006 -> 01-02-2006)
 		gameDate, err := time.Parse("Jan 02, 2006", row[2].(string))
 		if err != nil {
-			return err
+			log.Panicln(err)
 		}
 		gameDateFormatted := gameDate.Format("01-02-2006")
 		row[2] = gameDateFormatted
 
 		for _, col := range row[2:] {
+			colStr := fmt.Sprintf("%v", col)
+			col = strings.Replace(colStr, "<nil>", "..", 1)
 			fmt.Fprint(w, col)
 			fmt.Fprint(w, "\t ")
 		}
+
+		// Write black lines that can be read to get game data
+		utils.BlackPrint(w, "Internal:", true)
+		utils.BlackPrint(w, gameID, true)
+		utils.BlackPrint(w, gameDateUnf, true)
+		utils.BlackPrint(w, matchup, false)
+
 		fmt.Fprintln(w, "")
 	}
 	w.Flush()
-	return nil
-}
-
-// DrawTeamGameLog draws the selected Team IDs recent games in a gocui view
-func (nt *NBATop) DrawTeamGameLog(teamID, teamName string) error {
-	result := api.GetTeamGameLog(teamID)
-	headers := result.ResultSets[0].Headers[2:] // TeamID and GameID are first 2 headers
-	rowSet := result.ResultSets[0].RowSet
-
-	nt.Views.TeamGameLogView.teamID = teamID
-	nt.Views.TeamGameLogView.teamName = teamName
-	nt.Views.TeamGameLogView.headers = headers
-	nt.Views.TeamGameLogView.rowSet = rowSet
-
-	// TODO write a generalized "CreateIfNotExists" function
-	// Check if the view already exists, create view accordingly
-	if nt.Views.TeamGameLogView.drawn {
-		nt.WriteGameLog()
-	} else {
-		if v, err := nt.G.SetView("teamgamelog", nt.State.SidebarWidth, 0, nt.State.MaxX-1, nt.State.MaxY-1); err != nil {
-			if err != gocui.ErrUnknownView {
-				return err
-			}
-			v.Highlight = true
-			nt.Views.TeamGameLogView.drawn = true
-
-			nt.Views.TeamGameLogView.v = v
-			nt.WriteGameLog()
-		}
-	}
-	return nil
-}
-
-// selectTeam selects the team at the cursor and displays the team's
-// game log in the main table view
-func (nt *NBATop) selectTeam(g *gocui.Gui, v *gocui.View) error {
-	if v != nil {
-		_, cy := v.Cursor()
-		_, oy := v.Origin()
-
-		// Top 2 lines are headers
-		idx := cy - 2
-
-		// Adjust team index by scroll distance
-		if oy > 0 {
-			idx += oy
-		}
-
-		// Skip top row and Western Conference
-		if idx < 0 || idx == 15 {
-			return nil
-		}
-
-		// Adjust for teams after "Western Conference"
-		if idx > 15 {
-			idx -= 1
-		}
-
-		teamID := nt.State.GameLogIdxToTeamID[idx]
-		teamName := nt.State.GameLogIdxToTeamName[idx]
-
-		err := nt.DrawTeamGameLog(teamID, teamName)
-		if err != nil {
-			return err
-		}
-
-	}
-	return nil
-}
-
-func printFigure(w *tabwriter.Writer, content string) {
-	// teamNameFigure := figure.NewFigure(content, "standard", true)
-	// figure.Write(w, teamNameFigure)
-	fmt.Fprintln(w, content)
-	fmt.Fprintln(w, "")
 }
 
 // SetTGLKeybinds sets the keybindings for the TeamGameLogView
@@ -184,16 +145,22 @@ func (nt *NBATop) SetTGLKeybinds() error {
 	if err := nt.G.SetKeybinding("teamgamelog", 'k', gocui.ModNone, cursorUp); err != nil {
 		return err
 	}
-	if err := nt.G.SetKeybinding("teamgamelog", 'H', gocui.ModNone, nt.focusStandings); err != nil {
+	if err := nt.G.SetKeybinding("teamgamelog", 'G', gocui.ModNone, cursorBottom); err != nil {
+		return err
+	}
+	if err := nt.G.SetKeybinding("teamgamelog", 'g', gocui.ModNone, cursorTop); err != nil {
+		return err
+	}
+	if err := nt.G.SetKeybinding("teamgamelog", 'H', gocui.ModNone, nt.focusSidebar); err != nil {
 		return err
 	}
 	if err := nt.G.SetKeybinding("teamgamelog", gocui.KeyEnter, gocui.ModNone, nt.selectGame); err != nil {
 		return err
 	}
-	if err := nt.G.SetKeybinding("teamgamelog", 'A', gocui.ModNone, nt.tabLeft); err != nil {
+	if err := nt.G.SetKeybinding("teamgamelog", '[', gocui.ModNone, nt.tabLeft); err != nil {
 		return err
 	}
-	if err := nt.G.SetKeybinding("teamgamelog", 'D', gocui.ModNone, nt.tabRight); err != nil {
+	if err := nt.G.SetKeybinding("teamgamelog", ']', gocui.ModNone, nt.tabRight); err != nil {
 		return err
 	}
 	return nil
