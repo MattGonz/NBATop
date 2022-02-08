@@ -331,7 +331,7 @@ func (nt *NBATop) cursorRight(g *gocui.Gui, v *gocui.View) error {
 
 		maxX := strings.Index(longestHeader, "Internal:")
 
-		if ox+viewLengthX+3 > maxX {
+		if ox+viewLengthX+2 > maxX {
 			return nil
 		}
 
