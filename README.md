@@ -1,7 +1,8 @@
 # NBATop
 A [gocui](https://github.com/jroimartin/gocui) terminal UI for NBA stats (with [vim](https://en.wikipedia.org/wiki/Vim_(text_editor))-like keybinds)
 
-#### Demo gif
+### <sub><sup><em>painfully slow</em></sup></sub> Demo gif
+
 <img src="demo.gif" width="833" height="492"/>
 
 ### Build from source
