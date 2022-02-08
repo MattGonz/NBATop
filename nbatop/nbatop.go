@@ -183,9 +183,10 @@ func (nt *NBATop) FormatGamesToday() {
 		homeTeam := game.HTeam
 		awayTeam := game.VTeam
 
+		homeTeamPoints := game.HTeam.Score
+		awayTeamPoints := game.VTeam.Score
+
 		if game.IsGameActivated {
-			homeTeamPoints := game.HTeam.Score
-			awayTeamPoints := game.VTeam.Score
 			gameInfo = "(" + awayTeamPoints + ") " + awayTeam.TriCode + " at " + homeTeam.TriCode + " (" + homeTeamPoints + ")"
 			quarter := strconv.Itoa(game.Period.Current)
 			gameTime = game.Clock
@@ -203,8 +204,25 @@ func (nt *NBATop) FormatGamesToday() {
 			awayTeamRecord := "(" + awayTeam.Win + "-" + awayTeam.Loss + ") "
 
 			gameInfo = awayTeamRecord + awayTeam.TriCode + " at " + homeTeam.TriCode + homeTeamRecord
-			// spaces := strings.Repeat(" ", len(gameInfo)/3)
-			gameTime = game.StartTimeEastern
+
+			gameTimeUTC := game.StartTimeUTC
+
+			// TODO timezones
+			loc, err := time.LoadLocation("America/New_York")
+			if err != nil {
+				log.Panicln(err)
+			}
+
+			if gameTimeUTC.Before(time.Now().In(loc)) {
+				gameTime = "Final"
+				if awayTeamPoints > homeTeamPoints {
+					gameInfo = "(" + awayTeamPoints + ") " + awayTeam.TriCode + " def " + homeTeam.TriCode + " (" + homeTeamPoints + ")"
+				} else {
+					gameInfo = "(" + homeTeamPoints + ") " + homeTeam.TriCode + " def " + awayTeam.TriCode + " (" + awayTeamPoints + ")"
+				}
+			} else {
+				gameTime = gameTimeUTC.In(loc).Format("3:04PM")
+			}
 
 		}
 		games = append(games, []string{gameTime, gameInfo})

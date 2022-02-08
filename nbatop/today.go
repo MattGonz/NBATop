@@ -74,14 +74,17 @@ func (nt *NBATop) selectGameToday(g *gocui.Gui, v *gocui.View) error {
 			idx += oy
 		}
 
-		// line := strings.Split(v.BufferLines()[idx], "\t")
-		// lineLen := len(line)
 		gameInfo := nt.State.GamesTodayIdxToGame[idx]
 		gameID := gameInfo[0]
 		gameDate := gameInfo[1]
 		matchup := gameInfo[2]
 
 		nt.UpdateBoxScoreData(gameID, gameDate, matchup)
+
+		// Games that haven't started yet will have no active players
+		if nt.Views.BoxScoreView.BoxScore.Stats.ActivePlayers == nil {
+			return nil
+		}
 
 		err := nt.Views.BoxScoreView.Draw()
 		if err != nil {
