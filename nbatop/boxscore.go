@@ -18,6 +18,7 @@ type BoxScoreView struct {
 	BoxScore             *api.BoxScore
 	PersonIDToPlayerName map[string]string
 	TeamIDToTeamName     map[string]string
+	SecondHeadersIdx     int
 }
 
 // NewBoxScore creates a new BoxScoreView
@@ -135,7 +136,7 @@ func (bs *BoxScoreView) Write() {
 	printBoxScoreHeaders(w)
 	homePrinted := false
 
-	for _, player := range bs.BoxScore.Stats.ActivePlayers {
+	for idx, player := range bs.BoxScore.Stats.ActivePlayers {
 		// TODO see if we can check sortkeys here and highlight stat leaders
 
 		// players that aren't found in the active players list will not be displayed
@@ -150,6 +151,7 @@ func (bs *BoxScoreView) Write() {
 			// fmt.Fprintf(w, "\u001b[33m%s\u001b[0m\n", homeTeamName)
 			utils.PrintName(w, homeTeamName, v)
 			printBoxScoreHeaders(w)
+			bs.SecondHeadersIdx = idx + bs.headerOffset + 1
 			homePrinted = true
 		}
 

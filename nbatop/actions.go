@@ -278,6 +278,70 @@ func cursorDown(g *gocui.Gui, v *gocui.View) error {
 	return nil
 }
 
+// cursorDown moves the cursor down one row
+func (nt *NBATop) cursorLeft(g *gocui.Gui, v *gocui.View) error {
+	if v != nil {
+		ox, oy := v.Origin()
+
+		if ox == 0 {
+			return nil
+		}
+
+		if err := v.SetOrigin(ox-3, oy); err != nil {
+			if err := v.SetOrigin(ox-2, oy); err != nil {
+				if err := v.SetOrigin(ox-1, oy); err != nil {
+					return err
+				}
+			}
+		}
+	}
+	return nil
+}
+
+// cursorDown moves the cursor down one row
+func (nt *NBATop) cursorRight(g *gocui.Gui, v *gocui.View) error {
+	if v != nil {
+		var headerIdx int
+		var longestHeader string
+		name := v.Name()
+		viewLengthX, _ := v.Size()
+
+		if name != "teamgamelog" && name != "boxscore" && name != "playerstats" {
+			return nil
+		}
+
+		if name == "teamgamelog" {
+			headerIdx = nt.Views.TeamGameLogView.headerOffset
+			longestHeader = v.BufferLines()[headerIdx]
+		} else if name == "boxscore" {
+			headerIdx = nt.Views.BoxScoreView.headerOffset
+			firstHeaders := v.BufferLines()[headerIdx]
+			secondHeaders := v.BufferLines()[nt.Views.BoxScoreView.SecondHeadersIdx]
+			if len(firstHeaders) > len(secondHeaders) {
+				longestHeader = firstHeaders
+			} else if len(secondHeaders) > len(firstHeaders) {
+				longestHeader = secondHeaders
+			}
+		} else if name == "playerstats" {
+			headerIdx = nt.Views.PlayerStatsView.headerOffset
+			longestHeader = v.BufferLines()[headerIdx]
+		}
+
+		ox, oy := v.Origin()
+
+		maxX := strings.Index(longestHeader, "Internal:")
+
+		if ox+viewLengthX+3 > maxX {
+			return nil
+		}
+
+		if err := v.SetOrigin(ox+3, oy); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 // tabLeft focuses the table view to the left of the current tab
 func (nt *NBATop) tabLeft(g *gocui.Gui, v *gocui.View) error {
 	var focused string

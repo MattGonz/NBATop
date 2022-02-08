@@ -71,5 +71,11 @@ func (nt *NBATop) SetGenericTableKeybinds() error {
 	if err := nt.G.SetKeybinding("table", 'H', gocui.ModNone, nt.focusStandings); err != nil {
 		return err
 	}
+	if err := nt.G.SetKeybinding("", 'h', gocui.ModNone, nt.cursorLeft); err != nil {
+		return err
+	}
+	if err := nt.G.SetKeybinding("", 'l', gocui.ModNone, nt.cursorRight); err != nil {
+		return err
+	}
 	return nil
 }
