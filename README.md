@@ -13,18 +13,18 @@ go build -o nbatop main.go
 #### Todo
 ###### Views
 - [x] Games today
+- [x] Games today -> box scores
 - [x] Standings
 - [x] Team game logs
 - [x] Game box scores
 - [x] Player game logs
+- [x] Horizontal scrolling
 - [ ] Player profiles
 - [ ] Multiple seasons
 - [ ] `?` → help view
 
 
 ###### UI improvements
-- [ ] Games today → nba.com matchup pages (view?)
-- [ ] Horizontal scrolling
 - [ ] UI formatting keybinds
 - [ ] Table sorting
 - [ ] Fuzzing finding / better navigation keybinds
