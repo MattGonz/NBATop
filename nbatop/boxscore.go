@@ -81,6 +81,9 @@ func (bs *BoxScoreView) Write() {
 
 	homeTeamPoints := bs.BoxScore.BasicGameData.HTeam.Score
 	awayTeamPoints := bs.BoxScore.BasicGameData.VTeam.Score
+	homeTeamTriCode := bs.BoxScore.BasicGameData.HTeam.TriCode
+	awayTeamTriCode := bs.BoxScore.BasicGameData.VTeam.TriCode
+
 	isGameOn := bs.BoxScore.BasicGameData.IsGameActivated
 
 	var gameLine string
@@ -91,10 +94,10 @@ func (bs *BoxScoreView) Write() {
 	}
 
 	gameDate := bs.gameDate
+	time := bs.BoxScore.BasicGameData.Clock
 
 	if isGameOn {
 		quarter := strconv.Itoa(bs.BoxScore.BasicGameData.Period.Current)
-		time := bs.BoxScore.BasicGameData.Clock
 		if time == "" {
 			if bs.BoxScore.BasicGameData.Period.IsHalftime {
 				time = "Halftime"
@@ -106,7 +109,17 @@ func (bs *BoxScoreView) Write() {
 			utils.PrintFigure(w, "(Q"+quarter+" - "+time+")", v)
 		}
 	} else {
-		fmt.Fprintln(w, "")
+		time = "Final"
+
+		homeTeamPointsVal, _ := strconv.Atoi(homeTeamPoints)
+		awayTeamPointsVal, _ := strconv.Atoi(awayTeamPoints)
+
+		if awayTeamPointsVal > homeTeamPointsVal {
+			gameLine = "(" + awayTeamPoints + ") " + awayTeamTriCode + " def " + homeTeamTriCode + " (" + homeTeamPoints + ")"
+		} else if homeTeamPointsVal > awayTeamPointsVal {
+			gameLine = "(" + homeTeamPoints + ") " + homeTeamTriCode + " def " + awayTeamTriCode + " (" + awayTeamPoints + ")"
+		}
+		utils.PrintFigure(w, time, v)
 	}
 	utils.PrintFigure(w, gameLine, v)
 	utils.PrintFigure(w, gameDate, v)
