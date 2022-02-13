@@ -214,8 +214,11 @@ func (nt *NBATop) FormatGamesToday() {
 			}
 
 			if gameTimeUTC.Before(time.Now().In(loc)) {
+				homeTeamPointsVal, _ := strconv.Atoi(homeTeamPoints)
+				awayTeamPointsVal, _ := strconv.Atoi(awayTeamPoints)
+
 				gameTime = "Final"
-				if awayTeamPoints > homeTeamPoints {
+				if awayTeamPointsVal > homeTeamPointsVal {
 					gameInfo = "(" + awayTeamPoints + ") " + awayTeam.TriCode + " def " + homeTeam.TriCode + " (" + homeTeamPoints + ")"
 				} else {
 					gameInfo = "(" + homeTeamPoints + ") " + homeTeam.TriCode + " def " + awayTeam.TriCode + " (" + awayTeamPoints + ")"
