@@ -8,9 +8,11 @@ import (
 func (nt *NBATop) layout(g *gocui.Gui) error {
 	var err error
 
-	err = nt.DrawToday()
-	if err != nil {
-		return err
+	if nt.State.DrawGamesToday {
+		err = nt.DrawToday()
+		if err != nil {
+			return err
+		}
 	}
 	err = nt.DrawStandings()
 	if err != nil {

@@ -26,7 +26,10 @@ func NewTodayView() *TodayView {
 }
 
 // focusToday focuses the TodayView
-func focusToday(g *gocui.Gui, v *gocui.View) error {
+func (nt *NBATop) focusToday(g *gocui.Gui, v *gocui.View) error {
+	if !nt.State.DrawGamesToday {
+		return nil
+	}
 	_, err := g.SetCurrentView("today")
 	if err != nil {
 		return err

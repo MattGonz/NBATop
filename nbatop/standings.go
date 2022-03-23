@@ -88,7 +88,7 @@ func (nt *NBATop) SetStandingsKeybinds() error {
 	if err := nt.G.SetKeybinding("standings", 'G', gocui.ModNone, cursorBottom); err != nil {
 		return err
 	}
-	if err := nt.G.SetKeybinding("standings", 'K', gocui.ModNone, focusToday); err != nil {
+	if err := nt.G.SetKeybinding("standings", 'K', gocui.ModNone, nt.focusToday); err != nil {
 		return err
 	}
 	if err := nt.G.SetKeybinding("standings", 'L', gocui.ModNone, nt.focusTable); err != nil {

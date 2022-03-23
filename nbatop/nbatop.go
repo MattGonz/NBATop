@@ -25,6 +25,7 @@ type State struct {
 	StandingsSpaces      int
 	GamesToday           *api.NBAToday
 	GamesTodayLength     int
+	DrawGamesToday       bool
 	GamesTodayIdxToGame  map[int][]string
 	ActivePlayers        *api.Players
 	PersonIDToPlayerName map[string]string
@@ -56,6 +57,7 @@ func NewNBATop() *NBATop {
 		State: &State{
 			Standings:            &api.NBAStandings{},
 			GamesToday:           &api.NBAToday{},
+			DrawGamesToday:       true,
 			Today:                time.Now().Format("01-02-2006"),
 			GamesTodayIdxToGame:  make(map[int][]string),
 			TeamIDToTeamName:     make(map[string]string),
@@ -104,6 +106,12 @@ func (nt *NBATop) Run() {
 	g.Mouse = true
 	g.Highlight = true
 	g.SelFgColor = gocui.ColorGreen
+
+	// If there are no games today, we don't want to draw the view
+	if nt.State.GamesTodayLength == 0 {
+		nt.State.DrawGamesToday = false
+		nt.State.SidebarLength += 1
+	}
 
 	g.SetManagerFunc(nt.layout)
 
