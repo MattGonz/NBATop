@@ -163,5 +163,8 @@ func (nt *NBATop) SetTGLKeybinds() error {
 	if err := nt.G.SetKeybinding("teamgamelog", ']', gocui.ModNone, nt.tabRight); err != nil {
 		return err
 	}
+	if err := nt.G.SetKeybinding("teamgamelog", gocui.MouseLeft, gocui.ModNone, nt.selectGame); err != nil {
+		return err
+	}
 	return nil
 }

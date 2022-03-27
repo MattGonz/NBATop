@@ -166,5 +166,8 @@ func (nt *NBATop) SetPlayerStatsKeybinds() error {
 	if err := nt.G.SetKeybinding("playerstats", ']', gocui.ModNone, nt.tabRight); err != nil {
 		return err
 	}
+	if err := nt.G.SetKeybinding("playerstats", gocui.MouseLeft, gocui.ModNone, nt.selectGame); err != nil {
+		return err
+	}
 	return nil
 }

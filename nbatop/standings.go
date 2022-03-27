@@ -94,5 +94,9 @@ func (nt *NBATop) SetStandingsKeybinds() error {
 	if err := nt.G.SetKeybinding("standings", 'L', gocui.ModNone, nt.focusTable); err != nil {
 		return err
 	}
+	if err := nt.G.SetKeybinding("standings", gocui.MouseLeft, gocui.ModNone, nt.selectTeam); err != nil {
+		return err
+	}
+
 	return nil
 }

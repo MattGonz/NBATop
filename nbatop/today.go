@@ -144,5 +144,8 @@ func (nt *NBATop) SetTodayKeybinds() error {
 	if err := nt.G.SetKeybinding("today", 'r', gocui.ModNone, nt.refreshToday); err != nil {
 		return err
 	}
+	if err := nt.G.SetKeybinding("today", gocui.MouseLeft, gocui.ModNone, nt.selectGameToday); err != nil {
+		return err
+	}
 	return nil
 }

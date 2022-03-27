@@ -246,5 +246,8 @@ func (nt *NBATop) SetBoxScoreKeybinds() error {
 	if err := nt.G.SetKeybinding("boxscore", ']', gocui.ModNone, nt.tabRight); err != nil {
 		return err
 	}
+	if err := nt.G.SetKeybinding("boxscore", gocui.MouseLeft, gocui.ModNone, nt.selectPlayer); err != nil {
+		return err
+	}
 	return nil
 }
