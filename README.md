@@ -40,6 +40,24 @@ go build -o nbatop main.go
 - [ ] Table sorting
 - [ ] Fuzzing finding / better navigation keybinds
 
+###### Keybinds
+- All views:
+  - `Enter` - Select row (Team → show games) | (Game → show box score) | (Player → show player stats)
+  - `j` - move down a row
+  - `k` - move up a row
+  - `H` - Focus view to the left
+  - `J` - Focus view below
+  - `K` - Focus view above
+  - `L` - Focus view to the right
+  - `g` - Move cursor to top of view
+  - `G` - Move cursor to bottom of view
+- Table View:
+  - `h` - scroll left
+  - `l` - scroll right
+  - `[` - Focus tab left
+  - `]` - Focus tab right
+- Today View:
+  - `r` - Refresh games today (including the scores for games in progress)
 
 
 
