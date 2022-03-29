@@ -30,6 +30,7 @@ go build -o nbatop main.go
 - [x] Game box scores
 - [x] Player game logs
 - [x] Horizontal scrolling
+- [ ] Play-by-Play
 - [ ] Player profiles
 - [ ] Multiple seasons
 - [ ] `?` → help view
